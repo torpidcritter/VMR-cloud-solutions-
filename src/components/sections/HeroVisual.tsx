@@ -9,7 +9,7 @@ export function HeroVisual() {
   return (
     <div className="relative mx-auto w-full max-w-[34rem]" aria-hidden>
       <OrbitVisual
-        items={["SAP", "Java", "Python", "Cloud", "APIs", "Talent"]}
+        items={["SAP", "Java", "Python", "Cloud", "APIs", "Data"]}
         speed={60}
       />
 

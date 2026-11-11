@@ -17,7 +17,7 @@ export default function IndustriesPage() {
   return (
     <>
       <PageHero
-        orbit={["IT", "Enterprise", "Energy", "Finance", "Manufacturing", "Retail", "Telecom"]}
+        orbit={["SAP", "ERP", "APIs", "Cloud", "Automation", "Data"]}
         eyebrow="Industries We Serve"
         title="Technology Expertise Across Business Environments."
         text="Different industries face different technological challenges. Our approach focuses on understanding organizational requirements and identifying technology capabilities that can support business objectives."
