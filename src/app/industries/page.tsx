@@ -17,7 +17,7 @@ export default function IndustriesPage() {
   return (
     <>
       <PageHero
-        visual={["SAP", "ERP", "APIs", "Cloud", "Automation", "Data"]}
+        visual={["SAP", "ERP", "APIs", "Cloud", "Automation", "Data", "Integration", "Analytics", "Security", "Workflows", "Reporting", "Modernization"]}
         eyebrow="Industries We Serve"
         title="Technology Expertise Across Business Environments."
         text="Different industries face different technological challenges. Our approach focuses on understanding organizational requirements and identifying technology capabilities that can support business objectives."

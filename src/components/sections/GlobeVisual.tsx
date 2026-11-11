@@ -26,12 +26,6 @@ function fibonacciSphere(n: number): V3[] {
   return pts;
 }
 
-function fromLatLon(lat: number, lon: number): V3 {
-  const la = (lat * Math.PI) / 180;
-  const lo = (lon * Math.PI) / 180;
-  return [Math.cos(la) * Math.cos(lo), Math.sin(la), Math.cos(la) * Math.sin(lo)];
-}
-
 function slerp(a: V3, b: V3, t: number): V3 {
   const d = Math.min(1, Math.max(-1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]));
   const w = Math.acos(d);
@@ -42,15 +36,16 @@ function slerp(a: V3, b: V3, t: number): V3 {
   return [a[0] * k1 + b[0] * k2, a[1] * k1 + b[1] * k2, a[2] * k1 + b[2] * k2];
 }
 
-const labelSpots: [number, number][] = [
-  [38, 20],
-  [-12, 80],
-  [22, 150],
-  [-30, 210],
-  [48, 260],
-  [-5, 320],
-  [10, 0],
-];
+/** Spread n labels evenly over the sphere, away from the poles. */
+function labelPoints(n: number): V3[] {
+  const g = Math.PI * (3 - Math.sqrt(5));
+  return Array.from({ length: n }, (_, i) => {
+    const y = 0.72 - (i / Math.max(1, n - 1)) * 1.44;
+    const r = Math.sqrt(1 - y * y);
+    const t = g * i * 1.0 + 0.4;
+    return [Math.cos(t) * r, y, Math.sin(t) * r] as V3;
+  });
+}
 
 type Arc = { a: V3; b: V3; t: number; speed: number; hue: string };
 
@@ -69,7 +64,8 @@ export function GlobeVisual({
     if (!c || !ctx) return;
 
     const dots = fibonacciSphere(DOTS);
-    const labels = items.map((text, i) => ({ text, p: fromLatLon(...labelSpots[i % labelSpots.length]) }));
+    const spots = labelPoints(items.length);
+    const labels = items.map((text, i) => ({ text, p: spots[i] }));
     const arcs: Arc[] = [];
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -184,7 +180,7 @@ export function GlobeVisual({
       }
 
       // labels riding on the surface
-      ctx.font = `600 ${Math.max(11, size * 0.026)}px Inter, system-ui, sans-serif`;
+      ctx.font = `600 ${Math.max(10.5, size * 0.024)}px Inter, system-ui, sans-serif`;
       ctx.textBaseline = "middle";
       for (const l of labels) {
         const [x, y, z] = project(l.p);

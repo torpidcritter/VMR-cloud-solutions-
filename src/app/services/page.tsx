@@ -18,7 +18,7 @@ export default function ServicesPage() {
   return (
     <>
       <PageHero
-        visual={["SAP", "Java", "Python", "Cloud", "APIs", "Integration"]}
+        visual={["SAP", "Java", "Python", "Cloud", "APIs", "Integration", "Modernization", "Microservices", "Automation", "DevOps", "App Support", "Data", "ERP", "QA"]}
         eyebrow="Our Services"
         title="Enterprise Technology Expertise. Business-Focused Solutions."
         text="We bring together technology consulting, software engineering and enterprise technology capabilities to support organizations across their technology requirements."
