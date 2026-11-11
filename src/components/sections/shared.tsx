@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { OrbitVisual } from "./OrbitVisual";
 import type { ReactNode } from "react";
 import { ArrowRight, Mail, Phone } from "lucide-react";
 import { genericIcons, serviceIcons } from "@/components/ui/icons";
@@ -19,6 +20,7 @@ export function PageHero({
   crumbs,
   children,
   aside,
+  orbit,
 }: {
   eyebrow: string;
   title: ReactNode;
@@ -26,7 +28,10 @@ export function PageHero({
   crumbs?: { label: string; href?: string }[];
   children?: ReactNode;
   aside?: ReactNode;
+  /** Labels for the animated visual shown on the right (large screens). */
+  orbit?: readonly string[];
 }) {
+  const split = !!aside || !!orbit;
   return (
     <section className="relative -mt-[var(--header-h)] overflow-hidden border-b border-line bg-gradient-to-b from-brand-50/70 via-page to-page pt-[var(--header-h)]">
       <div aria-hidden className="pointer-events-none absolute inset-0 bg-grid mask-radial" />
@@ -52,8 +57,8 @@ export function PageHero({
             </ol>
           </nav>
         )}
-        <div className={aside ? "grid items-center gap-12 lg:grid-cols-12" : ""}>
-          <div className={aside ? "lg:col-span-7" : "max-w-3xl"}>
+        <div className={split ? "grid items-center gap-12 lg:grid-cols-12" : ""}>
+          <div className={split ? "lg:col-span-7" : "max-w-3xl"}>
             <p className="eyebrow">{eyebrow}</p>
             <h1 className="t-1 mt-5">
               {title}
@@ -72,6 +77,11 @@ export function PageHero({
           {aside && (
             <div className="anim-fade-up lg:col-span-5" style={{ ["--d" as string]: "200ms" }}>
               {aside}
+            </div>
+          )}
+          {!aside && orbit && (
+            <div className="hidden lg:col-span-5 lg:block">
+              <OrbitVisual items={orbit} className="max-w-[26rem] xl:max-w-[28rem]" />
             </div>
           )}
         </div>
