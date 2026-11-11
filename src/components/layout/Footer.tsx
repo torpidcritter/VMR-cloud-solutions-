@@ -39,8 +39,8 @@ export function Footer() {
       <div className="container-x relative pb-10 pt-16 md:pt-20">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-12 lg:gap-8">
           <div className="sm:col-span-2 lg:col-span-3">
-            <Link href="/" className="inline-flex rounded-2xl bg-logo px-5 py-3.5 shadow-[0_10px_30px_-12px_rgba(0,0,0,0.5)]" aria-label={`${site.name} – Home`}>
-              <Image src="/brand/vmr-cloud-logo.png" alt={site.legalName} width={953} height={176} sizes="240px" className="h-11 w-auto" />
+            <Link href="/" className="inline-flex" aria-label={`${site.name} – Home`}>
+              <Image src="/brand/vmr-cloud-logo.png" alt={site.legalName} width={624} height={115} sizes="300px" className="h-14 w-auto" />
             </Link>
             <p className="mt-6 font-display text-lg font-semibold tracking-tight text-white">{site.tagline}</p>
             <p className="mt-3 max-w-sm text-[0.925rem] leading-relaxed text-slate-400">{site.shortAbout}</p>

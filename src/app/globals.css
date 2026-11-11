@@ -90,10 +90,13 @@
 
 @layer base {
   :root {
-    --header-h: 4.75rem;
+    --header-h: 5rem;
   }
-  @media (min-width: 1024px) {
+  @media (min-width: 640px) {
     :root { --header-h: 5.75rem; }
+  }
+  @media (min-width: 1280px) {
+    :root { --header-h: 6.5rem; }
   }
   html {
     -webkit-text-size-adjust: 100%;
@@ -138,15 +141,13 @@
   /* Header runs wider than the page content so the logo sits near the corner. */
   .header-x {
     width: 100%;
-    max-width: 92rem;
-    margin-inline: auto;
     padding-inline: 1rem;
   }
   @media (min-width: 768px) {
-    .header-x { padding-inline: 2rem; }
+    .header-x { padding-inline: 1.5rem; }
   }
   @media (min-width: 1280px) {
-    .header-x { padding-inline: 2.5rem; }
+    .header-x { padding-inline: 2rem; }
   }
 
   .section-y {

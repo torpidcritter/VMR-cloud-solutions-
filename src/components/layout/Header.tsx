@@ -105,7 +105,7 @@ export function Header() {
                     aria-expanded={menuOpen}
                     aria-controls="services-menu"
                     onClick={() => setMenuOpen((v) => !v)}
-                    className={`group relative inline-flex items-center gap-1 rounded-full px-4 py-2 text-[0.925rem] font-medium transition-colors ${
+                    className={`group relative inline-flex items-center gap-1 rounded-full px-3 py-2 text-[0.925rem] xl:px-4 font-medium transition-colors ${
                       isActive(item.href) ? "text-brand-700" : "text-ink-soft hover:text-ink"
                     }`}
                   >
@@ -165,7 +165,7 @@ export function Header() {
                   <Link
                     href={item.href}
                     aria-current={isActive(item.href) ? "page" : undefined}
-                    className={`relative inline-flex rounded-full px-4 py-2 text-[0.925rem] font-medium transition-colors ${
+                    className={`relative inline-flex rounded-full px-3 py-2 text-[0.925rem] xl:px-4 font-medium transition-colors ${
                       isActive(item.href) ? "text-brand-700" : "text-ink-soft hover:text-ink"
                     }`}
                   >
