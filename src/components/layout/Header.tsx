@@ -7,8 +7,12 @@ import { ArrowRight, ChevronDown, Menu, X } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { serviceIcons } from "@/components/ui/icons";
-import { mainNav, site } from "@/content/site";
+import { recruitmentIcons } from "@/components/sections/recruitment";
+import { recruitmentServices } from "@/content/recruitment";
+import { candidateCta, mainNav, site } from "@/content/site";
 import { services } from "@/content/services";
+
+const DARK_HERO_PATHS = ["/clients"];
 
 export function Header() {
   const pathname = usePathname();
@@ -75,6 +79,8 @@ export function Header() {
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`));
 
   const solid = scrolled || mobileOpen || menuOpen;
+  /** Pages whose hero is dark navy: use light nav text while the header is transparent. */
+  const overDark = !solid && DARK_HERO_PATHS.includes(pathname);
 
   return (
     <>
@@ -94,7 +100,7 @@ export function Header() {
       <div className="header-x flex h-[var(--header-h)] items-center justify-between gap-6">
         <Logo priority />
 
-        <nav aria-label="Main" className="hidden lg:block">
+        <nav aria-label="Main" className="hidden xl:block">
           <ul className="flex items-center gap-1">
             {mainNav.map((item) =>
               "hasMenu" in item && item.hasMenu ? (
@@ -105,8 +111,8 @@ export function Header() {
                     aria-expanded={menuOpen}
                     aria-controls="services-menu"
                     onClick={() => setMenuOpen((v) => !v)}
-                    className={`group relative inline-flex items-center gap-1 rounded-full px-3 py-2 text-[0.925rem] xl:px-4 font-medium transition-colors ${
-                      isActive(item.href) ? "text-brand-700" : "text-ink-soft hover:text-ink"
+                    className={`group relative inline-flex items-center gap-1 rounded-full px-3 py-2 text-[0.925rem] font-medium 2xl:px-4 transition-colors ${
+                      isActive(item.href) ? (overDark ? "text-white" : "text-brand-700") : overDark ? "text-slate-300 hover:text-white" : "text-ink-soft hover:text-ink"
                     }`}
                   >
                     {item.label}
@@ -124,33 +130,55 @@ export function Header() {
                     }`}
                   >
                     <div className="overflow-hidden rounded-2xl border border-line bg-card shadow-[0_24px_60px_-24px_rgba(15,27,51,0.35)]">
-                      <ul className="grid grid-cols-2 gap-1 p-3">
-                        {services.map((s) => {
-                          const Icon = serviceIcons[s.icon];
-                          const active = pathname === `/services/${s.slug}`;
-                          return (
-                            <li key={s.slug}>
-                              <Link
-                                href={`/services/${s.slug}`}
-                                className={`group/item flex gap-3 rounded-xl p-3 transition-colors hover:bg-surface ${active ? "bg-brand-50" : ""}`}
-                              >
-                                <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg border border-line bg-card text-brand-600 transition-colors group-hover/item:border-brand-200 group-hover/item:text-brand-700">
-                                  <Icon aria-hidden className="size-[1.1rem]" strokeWidth={1.75} />
-                                </span>
-                                <span>
-                                  <span className="block text-sm font-semibold text-ink">{s.navTitle}</span>
-                                  <span className="mt-0.5 line-clamp-2 block text-[0.8rem] leading-snug text-muted">{s.summary}</span>
-                                </span>
-                              </Link>
-                            </li>
-                          );
-                        })}
-                      </ul>
+                      <div className="grid grid-cols-[1.15fr_1fr]">
+                        <div className="p-3">
+                          <p className="px-3 pb-2 pt-2 text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-muted">SAP Recruitment &amp; Staffing</p>
+                          <ul className="space-y-1">
+                            {recruitmentServices.map((s) => {
+                              const Icon = recruitmentIcons[s.icon];
+                              return (
+                                <li key={s.slug}>
+                                  <Link href={`/services#${s.slug}`} onClick={() => setMenuOpen(false)} className="group/item flex gap-3 rounded-xl p-3 transition-colors hover:bg-surface">
+                                    <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg border border-line bg-card text-brand-600 transition-colors group-hover/item:border-brand-200 group-hover/item:text-brand-700">
+                                      <Icon aria-hidden className="size-[1.1rem]" strokeWidth={1.75} />
+                                    </span>
+                                    <span>
+                                      <span className="block text-sm font-semibold text-ink">{s.title}</span>
+                                      <span className="mt-0.5 line-clamp-2 block text-[0.8rem] leading-snug text-muted">{s.summary}</span>
+                                    </span>
+                                  </Link>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
+                        <div className="border-l border-line bg-surface/60 p-3">
+                          <p className="px-3 pb-2 pt-2 text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-muted">Technology Services</p>
+                          <ul>
+                            {services.map((s) => {
+                              const Icon = serviceIcons[s.icon];
+                              const active = pathname === `/services/${s.slug}`;
+                              return (
+                                <li key={s.slug}>
+                                  <Link
+                                    href={`/services/${s.slug}`}
+                                    aria-current={active ? "page" : undefined}
+                                    className={`group/item flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-ink-soft transition-colors hover:bg-card hover:text-ink ${active ? "bg-card text-brand-700" : ""}`}
+                                  >
+                                    <Icon aria-hidden className="size-4 shrink-0 text-brand-600" strokeWidth={1.75} />
+                                    {s.navTitle}
+                                  </Link>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
+                      </div>
                       <div className="flex items-center justify-between gap-4 border-t border-line bg-surface px-6 py-3.5">
-                        <p className="text-sm text-muted">Technology. Talent. Transformation.</p>
+                        <p className="text-sm text-muted">Contract · Permanent · Project staffing</p>
                         <div className="flex items-center gap-5">
-                          <Link href="/technology" className="link-arrow text-sm">
-                            Technology expertise
+                          <Link href="/sap-expertise" className="link-arrow text-sm">
+                            SAP areas we recruit for
                           </Link>
                           <Link href="/services" className="link-arrow text-sm">
                             All services <ArrowRight aria-hidden className="size-4" />
@@ -165,8 +193,8 @@ export function Header() {
                   <Link
                     href={item.href}
                     aria-current={isActive(item.href) ? "page" : undefined}
-                    className={`relative inline-flex rounded-full px-3 py-2 text-[0.925rem] xl:px-4 font-medium transition-colors ${
-                      isActive(item.href) ? "text-brand-700" : "text-ink-soft hover:text-ink"
+                    className={`relative inline-flex rounded-full px-3 py-2 text-[0.925rem] font-medium 2xl:px-4 transition-colors ${
+                      isActive(item.href) ? (overDark ? "text-white" : "text-brand-700") : overDark ? "text-slate-300 hover:text-white" : "text-ink-soft hover:text-ink"
                     }`}
                   >
                     {item.label}
@@ -180,12 +208,16 @@ export function Header() {
 
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          <Link href="/contact" className="btn btn-primary hidden !min-h-[2.6rem] !px-5 !text-sm lg:inline-flex">
-            Contact Us
+          <Link
+            href={candidateCta.href}
+            aria-current={pathname === candidateCta.href ? "page" : undefined}
+            className="btn btn-primary hidden !min-h-[2.6rem] !px-5 !text-sm xl:inline-flex"
+          >
+            {candidateCta.label}
           </Link>
           <button
             type="button"
-            className="inline-grid size-11 place-items-center rounded-full border border-line bg-card text-ink lg:hidden"
+            className="inline-grid size-11 place-items-center rounded-full border border-line bg-card text-ink xl:hidden"
             aria-expanded={mobileOpen}
             aria-controls="mobile-menu"
             aria-label={mobileOpen ? "Close menu" : "Open menu"}
@@ -200,7 +232,7 @@ export function Header() {
       {/* Mobile menu */}
       <div
         id="mobile-menu"
-        className={`fixed inset-x-0 bottom-0 top-[var(--header-h)] z-40 origin-top overflow-y-auto border-t border-line bg-card transition-[opacity,transform,visibility] duration-250 lg:hidden ${
+        className={`fixed inset-x-0 bottom-0 top-[var(--header-h)] z-40 origin-top overflow-y-auto border-t border-line bg-card transition-[opacity,transform,visibility] duration-250 xl:hidden ${
           mobileOpen ? "visible translate-y-0 opacity-100" : "invisible -translate-y-2 opacity-0"
         }`}
       >
@@ -229,6 +261,20 @@ export function Header() {
                           All services
                         </Link>
                       </li>
+                      <li className="px-3 pb-1 pt-3 text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-muted">SAP Recruitment &amp; Staffing</li>
+                      {recruitmentServices.map((s) => (
+                        <li key={s.slug}>
+                          <Link
+                            href={`/services#${s.slug}`}
+                            onClick={() => setMobileOpen(false)}
+                            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[0.95rem] text-ink-soft hover:bg-surface"
+                          >
+                            <span className="w-6 text-xs font-semibold text-muted">{s.letter}</span>
+                            {s.title}
+                          </Link>
+                        </li>
+                      ))}
+                      <li className="px-3 pb-1 pt-4 text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-muted">Technology Services</li>
                       {services.map((s) => (
                         <li key={s.slug}>
                           <Link
@@ -262,8 +308,11 @@ export function Header() {
             )}
           </ul>
           <div className="mt-auto space-y-3 pt-8">
-            <Link href="/contact" className="btn btn-primary w-full">
-              Contact Us <ArrowRight aria-hidden className="size-4" />
+            <Link href={candidateCta.href} className="btn btn-primary w-full">
+              {candidateCta.label} <ArrowRight aria-hidden className="size-4" />
+            </Link>
+            <Link href="/contact?service=contract-sap-recruitment" className="btn btn-secondary w-full">
+              Find SAP Talent <ArrowRight aria-hidden className="size-4" />
             </Link>
             <a href={site.phone.mobile.href} className="btn btn-secondary w-full">
               Call {site.phone.mobile.display}

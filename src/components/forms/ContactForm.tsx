@@ -4,15 +4,21 @@ import { useRef, useState, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
 import { describedBy, Field, Honeypot } from "./Field";
-import { requirementOptions, serviceOptions, validateEnquiry, type Errors } from "@/lib/forms";
+import { recruitmentServiceOptions, requirementOptions, technologyServiceOptions, validateEnquiry, type Errors } from "@/lib/forms";
 import { services } from "@/content/services";
+import { recruitmentServices } from "@/content/recruitment";
 import { site } from "@/content/site";
 
 type Status = "idle" | "sending" | "success" | "error";
 
 export function ContactForm() {
   const params = useSearchParams();
-  const preset = services.find((s) => s.slug === params.get("service"))?.title ?? "";
+  const presetSlug = params.get("service");
+  const preset = [...recruitmentServices, ...services].find((s) => s.slug === presetSlug)?.title ?? "";
+  const presetRequirement =
+    { "contract-sap-recruitment": "Hire SAP contractors", "permanent-sap-recruitment": "Hire permanent SAP staff", "sap-project-staffing": "Staff an SAP project or team" }[
+      presetSlug ?? ""
+    ] ?? "";
   const [status, setStatus] = useState<Status>("idle");
   const [errors, setErrors] = useState<Errors>({});
   const [serverError, setServerError] = useState("");
@@ -97,13 +103,21 @@ export function ContactForm() {
           <option value="" disabled>
             Select a service
           </option>
-          {serviceOptions.map((o) => (
-            <option key={o}>{o}</option>
-          ))}
+          <optgroup label="SAP Recruitment & Staffing">
+            {recruitmentServiceOptions.map((o) => (
+              <option key={o}>{o}</option>
+            ))}
+          </optgroup>
+          <optgroup label="Technology Services">
+            {technologyServiceOptions.map((o) => (
+              <option key={o}>{o}</option>
+            ))}
+          </optgroup>
+          <option>Other / Not sure</option>
         </select>
       </Field>
-      <Field id="requirement" label="Project Requirements" error={errors.requirement}>
-        <select id="requirement" name="requirement" defaultValue="" className="field" aria-invalid={!!errors.requirement} aria-describedby={describedBy("requirement", errors.requirement)}>
+      <Field id="requirement" label="Requirement Type" error={errors.requirement}>
+        <select id="requirement" name="requirement" defaultValue={presetRequirement} className="field" aria-invalid={!!errors.requirement} aria-describedby={describedBy("requirement", errors.requirement)}>
           <option value="">Select an option</option>
           {requirementOptions.map((o) => (
             <option key={o}>{o}</option>

@@ -125,7 +125,7 @@ export function CareerForm() {
         </select>
       </Field>
 
-      <Field id="resume" label="Resume" required error={errors.resume} hint="PDF or Word, up to 5 MB">
+      <Field id="resume" label="Resume" required error={errors.resume} hint="PDF or Word, up to 4 MB">
         <div
           className={`relative flex min-h-12 items-center gap-3 rounded-[0.65rem] border border-dashed px-3 py-2 transition-colors focus-within:border-brand-500 focus-within:shadow-[0_0_0_4px_rgba(66,125,244,0.15)] hover:border-brand-300 ${
             errors.resume ? "border-accent-600" : "border-line-strong"

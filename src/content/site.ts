@@ -12,7 +12,7 @@ export const site = {
   tagline: "Technology. Talent. Transformation.",
   url: "https://vmrcloudsolutions.com",
   description:
-    "VMR Cloud Solutions is a Bengaluru-based IT and consulting company, established in 2017, with expertise in SAP, Java, Python, enterprise software development and IT consulting.",
+    "VMR Cloud Solutions is a specialist SAP recruitment and staffing partner, finding contract and permanent SAP consultants for end customers and SAP service integrators across the UK and Europe. Established in 2017 in Bengaluru.",
   shortAbout:
     "VMR Cloud Solutions Private Limited is an IT and consulting company based in Bengaluru, India, with technical experience across SAP, Java, Python and enterprise software development.",
 
@@ -102,17 +102,24 @@ export const mainNav = [
   { label: "Home", href: "/" },
   { label: "About Us", href: "/about" },
   { label: "Services", href: "/services", hasMenu: true },
-  { label: "Industries", href: "/industries" },
-  { label: "Careers", href: "/careers" },
+  { label: "SAP Expertise", href: "/sap-expertise" },
+  { label: "Our Clients", href: "/clients" },
+  { label: "Contact Us", href: "/contact" },
 ] as const;
+
+/** Highlighted header action for candidates (desktop and mobile). */
+export const candidateCta = { label: "Upload Your CV", href: "/upload-cv" } as const;
 
 export const footerQuickLinks = [
   { label: "Home", href: "/" },
   { label: "About Us", href: "/about" },
   { label: "Services", href: "/services" },
+  { label: "SAP Expertise", href: "/sap-expertise" },
+  { label: "Our Clients", href: "/clients" },
+  { label: "Upload Your CV", href: "/upload-cv" },
+  { label: "Careers", href: "/careers" },
   { label: "Technology Expertise", href: "/technology" },
   { label: "Industries", href: "/industries" },
-  { label: "Careers", href: "/careers" },
   { label: "Contact Us", href: "/contact" },
 ] as const;
 

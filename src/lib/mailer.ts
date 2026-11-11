@@ -21,6 +21,12 @@ type Mail = {
   attachments?: { filename: string; content: Buffer; contentType?: string }[];
 };
 
+export function isMailConfigured() {
+  if (process.env.MAIL_TRANSPORT === "log") return true;
+  const { SMTP_HOST, SMTP_USER, SMTP_PASS } = process.env;
+  return Boolean(SMTP_HOST && SMTP_USER && SMTP_PASS);
+}
+
 export async function sendMail(mail: Mail) {
   if (process.env.MAIL_TRANSPORT === "log") {
     console.info("[mail:log]", { ...mail, attachments: mail.attachments?.map((a) => `${a.filename} (${a.content.length} bytes)`) });

@@ -18,7 +18,7 @@ export function Field({
   className?: string;
 }) {
   return (
-    <div className={className}>
+    <div className={`min-w-0 ${className}`}>
       <label htmlFor={id} className="field-label">
         {label}
         {required ? (

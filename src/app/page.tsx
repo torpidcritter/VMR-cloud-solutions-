@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight, Building2, CalendarDays, MapPin, Users } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Building2, CalendarDays, Globe2 } from "lucide-react";
 import { HeroVisual } from "@/components/sections/HeroVisual";
+import { AudiencePaths, RecruitmentServiceCards, SapAreasGrid } from "@/components/sections/recruitment";
 import {
-  ApproachSteps,
   CertificationsSection,
   ClientsSection,
   CtaBand,
@@ -13,6 +13,7 @@ import { CountUp } from "@/components/ui/CountUp";
 import { genericIcons } from "@/components/ui/icons";
 import { Section, SectionHeading } from "@/components/ui/Section";
 import { industries, pillars, stats } from "@/content/company";
+import { recruitmentPositioning } from "@/content/recruitment";
 import { services } from "@/content/services";
 import { site } from "@/content/site";
 
@@ -25,22 +26,17 @@ export default function HomePage() {
         <div aria-hidden className="pointer-events-none absolute -right-40 top-10 size-[34rem] rounded-full bg-sky-brand/10 blur-3xl" />
         <div className="container-x relative grid items-center gap-12 pb-20 pt-10 md:pt-16 lg:grid-cols-12 lg:gap-8 lg:pb-28 lg:pt-20">
           <div className="lg:col-span-6 xl:col-span-6">
-            <p className="eyebrow text-[0.7rem] sm:text-xs">VMR Cloud Solutions · Enterprise Technology &amp; Consulting</p>
+            <p className="eyebrow text-[0.7rem] sm:text-xs">{recruitmentPositioning.eyebrow}</p>
             <h1 className="t-display mt-6">
-              Engineering Enterprise <span className="bg-gradient-to-r from-brand-600 to-[#0aa6e0] bg-clip-text text-transparent">Transformation.</span>
+              SAP Recruitment &amp; <span className="bg-gradient-to-r from-brand-600 to-[#0aa6e0] bg-clip-text text-transparent">SAP Staffing Solutions.</span>
             </h1>
-            <p className="mt-5 font-display text-lg font-semibold tracking-tight text-ink-soft sm:text-xl">
-              Technology<span className="text-accent-500">.</span> Talent<span className="text-accent-500">.</span> Transformation<span className="text-accent-500">.</span>
-            </p>
-            <p className="lead mt-6 max-w-xl">
-              We bring enterprise technology expertise, software engineering and IT consulting together to help businesses modernize their operations, build scalable solutions and navigate an evolving digital landscape.
-            </p>
+            <p className="lead mt-6 max-w-xl">{recruitmentPositioning.summary}</p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-              <Link href="/services" className="btn btn-primary">
-                Explore Our Services <ArrowRight aria-hidden className="size-4" />
+              <Link href="/contact?service=contract-sap-recruitment" className="btn btn-primary">
+                Find SAP Talent <ArrowRight aria-hidden className="size-4" />
               </Link>
-              <Link href="/contact" className="btn btn-secondary">
-                Talk to Our Team
+              <Link href="/upload-cv" className="btn btn-secondary">
+                Upload Your CV
               </Link>
             </div>
             <dl className="mt-12 flex flex-wrap gap-x-8 gap-y-3 text-sm text-muted">
@@ -50,9 +46,9 @@ export default function HomePage() {
                 <dd>Established {site.established}</dd>
               </div>
               <div className="flex items-center gap-2">
-                <MapPin aria-hidden className="size-4 text-brand-500" />
-                <dt className="sr-only">Headquarters</dt>
-                <dd>Bengaluru, India</dd>
+                <Globe2 aria-hidden className="size-4 text-brand-500" />
+                <dt className="sr-only">Coverage</dt>
+                <dd>Recruiting across the {recruitmentPositioning.markets}</dd>
               </div>
               <div className="flex items-center gap-2">
                 <Building2 aria-hidden className="size-4 text-brand-500" />
@@ -71,13 +67,11 @@ export default function HomePage() {
       <Section labelledBy="intro-title" className="!pt-8 md:!pt-12">
         <div className="container-x grid gap-12 lg:grid-cols-12 lg:gap-16">
           <div className="lg:col-span-7">
-            <SectionHeading id="intro-title" eyebrow="Who we are" title="Technology That Moves Businesses Forward." />
+            <SectionHeading id="intro-title" eyebrow="Who we are" title="Specialists in SAP Talent." />
             <div data-reveal className="mt-7 space-y-5 body-copy max-w-2xl">
+              <p>{recruitmentPositioning.detail}</p>
               <p>
-                Established in September 2017, VMR Cloud Solutions Private Limited is an IT and consulting company based in Bengaluru, India.
-              </p>
-              <p>
-                We focus on enterprise technology, software engineering and IT consulting, bringing together technical expertise and business understanding to support organizations in their digital journeys. With experience across technologies including SAP, Java and Python, our team works across different areas of enterprise technology and software development.
+                Established in September 2017, VMR Cloud Solutions Private Limited is an IT and consulting company headquartered in Bengaluru, India. We recruit contract and permanent SAP professionals for end customers and SAP service integrators, and our consulting and engineering teams work across SAP, Java and Python.
               </p>
             </div>
             <Link href="/about" data-reveal className="link-arrow mt-8">
@@ -95,8 +89,9 @@ export default function HomePage() {
                   ["Legal name", site.legalName],
                   ["Established", site.established],
                   ["Headquarters", "Bengaluru, Karnataka"],
-                  ["Core expertise", "SAP · Java · Python"],
-                  ["Focus", "IT consulting & enterprise software"],
+                  ["Specialism", "SAP recruitment & staffing"],
+                  ["Recruiting for", "UK & Europe"],
+                  ["Also delivering", "SAP, Java & Python consulting"],
                 ].map(([k, v]) => (
                   <div key={k} className="grid grid-cols-5 gap-4 px-6 py-3.5 text-[0.925rem]">
                     <dt className="col-span-2 text-muted">{k}</dt>
@@ -139,18 +134,74 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 04 — Services */}
+      {/* 04 — Recruitment services */}
+      <Section labelledBy="recruitment-title">
+        <div className="container-x">
+          <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+            <SectionHeading
+              id="recruitment-title"
+              eyebrow="SAP Recruitment & Staffing"
+              title="Contract, permanent and project staffing."
+              text="Three specialist services for organisations delivering SAP, from a single contractor to a complete project team."
+            />
+            <Link href="/services#sap-recruitment" data-reveal className="btn btn-secondary shrink-0 self-start md:self-auto">
+              All services <ArrowRight aria-hidden className="size-4" />
+            </Link>
+          </div>
+          <div className="mt-12">
+            <RecruitmentServiceCards />
+          </div>
+        </div>
+      </Section>
+
+      {/* 05 — SAP areas */}
+      <Section tone="dark" labelledBy="sap-areas-title" className="overflow-hidden">
+        <div aria-hidden className="pointer-events-none absolute inset-0 bg-dots-dark mask-fade-b" />
+        <div aria-hidden className="pointer-events-none absolute -left-40 top-0 size-[30rem] rounded-full bg-brand-500/20 blur-[120px]" />
+        <div className="container-x relative">
+          <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+            <SectionHeading
+              dark
+              id="sap-areas-title"
+              eyebrow="SAP Expertise"
+              title="SAP Areas We Recruit For."
+              text="From S/4HANA and BTP to functional modules, development and Basis."
+            />
+            <Link href="/sap-expertise" data-reveal className="btn btn-ghost-dark shrink-0 self-start md:self-auto">
+              Explore SAP expertise <ArrowRight aria-hidden className="size-4" />
+            </Link>
+          </div>
+          <div className="mt-12">
+            <SapAreasGrid dark />
+          </div>
+        </div>
+      </Section>
+
+      {/* 06 — Employers & candidates */}
+      <Section labelledBy="paths-title">
+        <div className="container-x">
+          <SectionHeading id="paths-title" eyebrow="How we can help" title="For employers and SAP professionals." />
+          <div className="mt-12">
+            <AudiencePaths />
+          </div>
+        </div>
+      </Section>
+
+      {/* Clients (supplied by VMR) */}
+      <ClientsSection tone="surface" showLink />
+
+      {/* 07 — Technology services */}
       <Section labelledBy="services-title">
         <div className="container-x">
           <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
             <SectionHeading
               id="services-title"
-              eyebrow="What we do"
-              title="Our Technology Capabilities."
-              text="Technology consulting and engineering capabilities designed around evolving business requirements."
+              eyebrow="Technology services"
+              title="Beyond recruitment: technology capabilities."
+              text="Our consulting and engineering teams also deliver SAP, Java, Python and IT services."
             />
-            <Link href="/services" data-reveal className="btn btn-secondary shrink-0 self-start md:self-auto">
-              View all services <ArrowRight aria-hidden className="size-4" />
+            <Link href="/services#technology-services" data-reveal className="btn btn-secondary shrink-0 self-start md:self-auto">
+              View technology services <ArrowRight aria-hidden className="size-4" />
             </Link>
           </div>
           <div className="mt-12 grid gap-4 sm:grid-cols-2 xl:grid-cols-4 lg:gap-5">
@@ -161,52 +212,8 @@ export default function HomePage() {
         </div>
       </Section>
 
-      {/* 05 — Technology expertise */}
-      <Section tone="dark" labelledBy="tech-title" className="overflow-hidden">
-        <div aria-hidden className="pointer-events-none absolute inset-0 bg-dots-dark mask-fade-b" />
-        <div aria-hidden className="pointer-events-none absolute -left-40 top-0 size-[30rem] rounded-full bg-brand-500/20 blur-[120px]" />
-        <div className="container-x relative">
-          <div className="grid gap-10 lg:grid-cols-12">
-            <div className="lg:col-span-5">
-              <SectionHeading
-                dark
-                id="tech-title"
-                eyebrow="Technology expertise"
-                title="Technology Expertise That Supports Business Growth."
-                text="Our technical experience spans enterprise platforms, software engineering and modern application technologies."
-              />
-              <Link href="/technology" data-reveal className="btn btn-ghost-dark mt-9">
-                Explore our expertise <ArrowRight aria-hidden className="size-4" />
-              </Link>
-            </div>
-            <ul className="grid gap-4 lg:col-span-7">
-              {[
-                { name: "SAP", kind: "Enterprise platforms", text: "Consulting, development, integration and support across SAP-based enterprise environments." },
-                { name: "Java", kind: "Enterprise engineering", text: "Scalable applications, backend systems and APIs for business-critical software." },
-                { name: "Python", kind: "Modern software", text: "Backend services, automation and data processing for flexible, fast-moving solutions." },
-              ].map((t, i) => (
-                <li
-                  key={t.name}
-                  data-reveal
-                  style={{ ["--reveal-delay" as string]: `${i * 90}ms` }}
-                  className="group grid grid-cols-[auto_1fr] items-center gap-6 rounded-2xl border border-white/10 bg-card/[0.03] p-6 transition-[background-color,border-color] duration-300 hover:border-sky-brand/40 hover:bg-card/[0.06] md:gap-10 md:p-8"
-                >
-                  <span className="w-28 font-display text-4xl font-bold tracking-tight text-white md:w-40 md:text-5xl">
-                    {t.name}
-                  </span>
-                  <span>
-                    <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-sky-brand">{t.kind}</span>
-                    <span className="mt-2 block text-[0.95rem] leading-relaxed text-slate-300">{t.text}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </Section>
-
-      {/* 06 — Why VMR */}
-      <Section labelledBy="why-title">
+      {/* 08 — Why VMR */}
+      <Section tone="surface" labelledBy="why-title">
         <div className="container-x">
           <SectionHeading
             id="why-title"
@@ -220,22 +227,7 @@ export default function HomePage() {
         </div>
       </Section>
 
-      {/* 07 — Delivery approach */}
-      <Section tone="surface" labelledBy="approach-title">
-        <div className="container-x">
-          <SectionHeading
-            id="approach-title"
-            eyebrow="Our approach"
-            title="From Business Challenges to Technology Solutions."
-            text="Successful technology implementation begins with understanding business requirements and continues through planning, engineering and ongoing support."
-          />
-          <div className="mt-14">
-            <ApproachSteps />
-          </div>
-        </div>
-      </Section>
-
-      {/* 08 — Industries */}
+      {/* 09 — Industries */}
       <Section labelledBy="industries-title">
         <div className="container-x">
           <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
@@ -279,59 +271,14 @@ export default function HomePage() {
         </div>
       </Section>
 
-      {/* Clients & certifications (supplied by VMR) */}
-      <ClientsSection tone="surface" />
-      <CertificationsSection tone="white" />
-
-      {/* 09 — Careers */}
-      <Section tone="surface" labelledBy="careers-title" className="overflow-hidden">
-        <div className="container-x">
-          <div className="relative overflow-hidden rounded-3xl border border-line bg-card">
-            <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 hidden w-1/2 bg-grid mask-radial lg:block" />
-            <div className="relative grid gap-10 p-8 md:p-12 lg:grid-cols-12 lg:p-16">
-              <div className="lg:col-span-7" data-reveal>
-                <p className="eyebrow">Careers</p>
-                <h2 id="careers-title" className="t-2 mt-4">
-                  Build Your Future With VMR.
-                </h2>
-                <p className="lead mt-5 max-w-xl">
-                  We believe that technology evolves through people, ideas and continuous learning. Explore opportunities to develop your capabilities and contribute to technology-driven projects.
-                </p>
-                <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-                  <Link href="/careers" className="btn btn-primary">
-                    Explore Career Opportunities <ArrowRight aria-hidden className="size-4" />
-                  </Link>
-                  <a href={`mailto:${site.email.hr}`} className="btn btn-secondary">
-                    {site.email.hr}
-                  </a>
-                </div>
-              </div>
-              <div className="lg:col-span-5" data-reveal style={{ ["--reveal-delay" as string]: "120ms" }}>
-                <ul className="flex flex-wrap gap-2 lg:justify-end">
-                  {["SAP Consulting", "Java Development", "Python Development", "Software Engineering", "Quality Assurance", "IT Consulting", "Internships"].map(
-                    (r) => (
-                      <li key={r} className="rounded-full border border-line bg-card px-4 py-2 text-sm font-medium text-ink-soft">
-                        {r}
-                      </li>
-                    ),
-                  )}
-                </ul>
-                <div className="mt-6 flex items-center gap-3 rounded-2xl bg-surface p-5 lg:ml-auto lg:max-w-sm">
-                  <span className="grid size-11 place-items-center rounded-full bg-card text-brand-600">
-                    <Users aria-hidden className="size-5" />
-                  </span>
-                  <p className="text-sm leading-relaxed text-ink-soft">
-                    Experienced professionals and aspiring engineers are welcome to apply.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Section>
-
-      {/* 10 — Contact CTA */}
-      <CtaBand />
+      {/* 10 — Certifications & contact CTA */}
+      <CertificationsSection tone="surface" />
+      <CtaBand
+        title="Let's Talk About Your SAP Requirements."
+        text="Whether you're hiring SAP talent or looking for your next SAP role, our team is ready to help."
+        primary={{ label: "Contact Our Recruitment Team", href: "/contact" }}
+        secondary={{ label: "Upload Your CV", href: "/upload-cv" }}
+      />
     </>
   );
 }

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Mail, MapPin, Phone } from "lucide-react";
 import { footerQuickLinks, legalLinks, site } from "@/content/site";
 import { services } from "@/content/services";
+import { recruitmentPositioning, recruitmentServices } from "@/content/recruitment";
 
 const socialPaths: Record<string, { label: string; d: string }> = {
   linkedin: {
@@ -42,8 +43,16 @@ export function Footer() {
             <Link href="/" className="inline-flex" aria-label={`${site.name} – Home`}>
               <Image src="/brand/vmr-cloud-logo.png" alt={site.legalName} width={624} height={115} sizes="300px" className="h-14 w-auto" />
             </Link>
-            <p className="mt-6 font-display text-lg font-semibold tracking-tight text-white">{site.tagline}</p>
-            <p className="mt-3 max-w-sm text-[0.925rem] leading-relaxed text-slate-400">{site.shortAbout}</p>
+            <p className="mt-6 font-display text-lg font-semibold tracking-tight text-white">SAP Recruitment &amp; Staffing</p>
+            <p className="mt-3 max-w-sm text-[0.925rem] leading-relaxed text-slate-400">{recruitmentPositioning.summary}</p>
+            <div className="mt-6 flex flex-wrap gap-2">
+              <Link href="/contact?service=contract-sap-recruitment" className="btn btn-light !min-h-[2.5rem] !px-4 !text-sm">
+                Find SAP Talent
+              </Link>
+              <Link href="/upload-cv" className="btn btn-ghost-dark !min-h-[2.5rem] !px-4 !text-sm">
+                Upload Your CV
+              </Link>
+            </div>
             {socials.length > 0 && (
               <ul className="mt-6 flex gap-2" aria-label="Social media">
                 {socials.map(([key, url]) => {
@@ -79,15 +88,26 @@ export function Footer() {
             ))}
           </FooterCol>
 
-          <FooterCol title="Services" className="lg:col-span-3 lg:pl-4">
-            {services.map((s) => (
-              <li key={s.slug}>
-                <Link href={`/services/${s.slug}`} className="u-link transition-colors hover:text-white">
-                  {s.navTitle}
-                </Link>
-              </li>
-            ))}
-          </FooterCol>
+          <div className="space-y-10 lg:col-span-3 lg:pl-4">
+            <FooterCol title="SAP Recruitment">
+              {recruitmentServices.map((s) => (
+                <li key={s.slug}>
+                  <Link href={`/services#${s.slug}`} className="u-link transition-colors hover:text-white">
+                    {s.title}
+                  </Link>
+                </li>
+              ))}
+            </FooterCol>
+            <FooterCol title="Technology Services">
+              {services.map((s) => (
+                <li key={s.slug}>
+                  <Link href={`/services/${s.slug}`} className="u-link transition-colors hover:text-white">
+                    {s.navTitle}
+                  </Link>
+                </li>
+              ))}
+            </FooterCol>
+          </div>
 
           <FooterCol title="Contact" className="lg:col-span-4">
             {site.contacts.map((c) => (

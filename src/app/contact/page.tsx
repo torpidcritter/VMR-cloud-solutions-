@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Suspense } from "react";
 import { ArrowUpRight, Boxes, MapPin, Phone, UserRound } from "lucide-react";
 import { ContactForm } from "@/components/forms/ContactForm";
@@ -9,7 +10,7 @@ import { pageMetadata } from "@/lib/seo";
 export const metadata = pageMetadata({
   title: "Contact Us",
   description:
-    "Contact VMR Cloud Solutions in Bengaluru to discuss SAP, Java, Python, cloud and IT consulting requirements. Call +91 9392670130 or email rajesh.v@vmrcloudsolutions.com.",
+    "Contact VMR Cloud Solutions to discuss contract or permanent SAP recruitment, SAP project staffing, or SAP, Java, Python and IT consulting requirements. Call +91 9392670130 or email rajesh.v@vmrcloudsolutions.com.",
   path: "/contact",
 });
 
@@ -20,21 +21,21 @@ export default function ContactPage() {
   return (
     <>
       <PageHero
-        visual={["SAP", "Java", "Python", "Cloud", "APIs", "Integration", "Automation", "Data", "DevOps", "App Support"]}
+        visual={["S/4HANA", "FI/CO", "SD", "MM", "BTP", "ABAP", "Fiori/UI5", "Basis", "Java", "Python", "Cloud", "APIs"]}
         eyebrow="Contact Us"
-        title="Let's Build Something Together."
-        text="Have a technology requirement, business challenge or project idea? Connect with VMR Cloud Solutions to discuss your requirements and explore how our technology and consulting capabilities may support your objectives."
+        title="Let's Talk About Your Requirements."
+        text="Hiring SAP contractors, recruiting permanent SAP staff or staffing an SAP project? Or exploring a technology requirement? Tell us what you need and our team will get back to you."
         crumbs={[{ label: "Home", href: "/" }, { label: "Contact Us" }]}
       />
 
       <Section labelledBy="enquiry" className="!pt-14 md:!pt-20">
         <div className="container-x grid gap-10 lg:grid-cols-12 lg:gap-14">
-          <div className="lg:col-span-7">
+          <div className="min-w-0 lg:col-span-7">
             <div className="card p-6 shadow-[var(--shadow-card)] md:p-10">
               <h2 id="enquiry" className="text-2xl font-bold tracking-tight">
-                Business enquiry
+                Employer &amp; business enquiry
               </h2>
-              <p className="mt-2 text-[0.95rem] text-muted">Tell us what you need and our team will get back to you.</p>
+              <p className="mt-2 text-[0.95rem] text-muted">For SAP talent, staffing or technology services. Looking for a role? <Link href="/upload-cv" className="font-semibold text-brand-700 underline underline-offset-2">Upload your CV</Link> instead.</p>
               <div className="mt-8">
                 <Suspense fallback={<div className="h-[34rem] animate-pulse rounded-xl bg-surface" />}>
                   <ContactForm />
@@ -43,7 +44,15 @@ export default function ContactPage() {
             </div>
           </div>
 
-          <aside className="space-y-4 lg:col-span-5" aria-label="Contact information">
+          <aside className="min-w-0 space-y-4 lg:col-span-5" aria-label="Contact information">
+            <Link href="/upload-cv" className="group flex items-center gap-4 rounded-[var(--radius-card)] bg-navy-900 p-6 text-white transition-colors hover:bg-navy-800 md:p-7">
+              <span className="min-w-0 flex-1">
+                <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-sky-brand">SAP professionals</span>
+                <span className="mt-1 block font-display text-lg font-bold">Upload your CV</span>
+                <span className="mt-1 block text-sm text-slate-300">Be considered for contract and permanent SAP roles.</span>
+              </span>
+              <ArrowUpRight aria-hidden className="size-5 shrink-0 text-sky-brand transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+            </Link>
             <div className="card overflow-hidden">
               <div className="border-b border-line bg-surface px-6 py-4 md:px-7">
                 <h2 className="text-base font-semibold">Contact us directly</h2>

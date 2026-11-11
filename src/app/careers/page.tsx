@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ArrowRight, BookOpen, Code2, GraduationCap, Mail, Users } from "lucide-react";
 import { CareerForm } from "@/components/forms/CareerForm";
 import { PageHero } from "@/components/sections/shared";
@@ -38,6 +39,17 @@ export default function CareersPage() {
           </a>
         </div>
       </PageHero>
+
+      <section aria-label="SAP roles" className="border-b border-line bg-surface">
+        <div className="container-x flex flex-col gap-4 py-6 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-[0.95rem] text-ink-soft">
+            <span className="font-semibold text-ink">Looking for contract or permanent SAP roles with our clients?</span> Use our dedicated SAP CV upload instead.
+          </p>
+          <Link href="/upload-cv" className="btn btn-primary shrink-0 !min-h-[2.6rem] !text-sm">
+            Upload Your CV <ArrowRight aria-hidden className="size-4" />
+          </Link>
+        </div>
+      </section>
 
       <Section labelledBy="why-join">
         <div className="container-x grid gap-12 lg:grid-cols-12 lg:gap-16">
