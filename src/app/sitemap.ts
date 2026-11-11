@@ -4,7 +4,21 @@ import { site } from "@/content/site";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
-  const pages = ["", "/about", "/services", "/technology", "/industries", "/careers", "/contact", "/privacy-policy", "/terms", "/cookie-policy"];
+  const pages = [
+    "",
+    "/about",
+    "/services",
+    "/sap-expertise",
+    "/clients",
+    "/upload-cv",
+    "/technology",
+    "/industries",
+    "/careers",
+    "/contact",
+    "/privacy-policy",
+    "/terms",
+    "/cookie-policy",
+  ];
   return [
     ...pages.map((p) => ({
       url: `${site.url}${p}`,

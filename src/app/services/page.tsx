@@ -1,16 +1,17 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { RecruitmentServiceDetails, SapAreasGrid } from "@/components/sections/recruitment";
 import { ApproachSteps, CtaBand, PageHero, ServiceCard } from "@/components/sections/shared";
 import { serviceIcons } from "@/components/ui/icons";
 import { Section, SectionHeading } from "@/components/ui/Section";
-import { pillars } from "@/content/company";
+import { recruitmentPositioning, recruitmentServices } from "@/content/recruitment";
 import { services } from "@/content/services";
 import { pageMetadata } from "@/lib/seo";
 
 export const metadata = pageMetadata({
   title: "Our Services",
   description:
-    "SAP consulting, Java and Python development, digital transformation, cloud solutions, IT staffing, digital engineering and application support from VMR Cloud Solutions.",
+    "Contract SAP recruitment, permanent SAP recruitment and SAP project staffing across the UK and Europe, plus SAP consulting, Java and Python development and technology services from VMR Cloud Solutions.",
   path: "/services",
 });
 
@@ -18,29 +19,66 @@ export default function ServicesPage() {
   return (
     <>
       <PageHero
-        visual={["SAP", "Java", "Python", "Cloud", "APIs", "Integration", "Modernization", "Microservices", "Automation", "DevOps", "App Support", "Data", "ERP", "QA"]}
-        eyebrow="Our Services"
-        title="Enterprise Technology Expertise. Business-Focused Solutions."
-        text="We bring together technology consulting, software engineering and enterprise technology capabilities to support organizations across their technology requirements."
+        eyebrow={recruitmentPositioning.eyebrow}
+        title={recruitmentPositioning.title}
+        text={recruitmentPositioning.summary}
         crumbs={[{ label: "Home", href: "/" }, { label: "Services" }]}
         aside={
-          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-1">
-            {pillars.map((p, i) => (
-              <li key={p.title} className="card flex gap-4 p-5">
-                <span className="font-display text-sm font-bold text-brand-500">0{i + 1}</span>
-                <span>
-                  <span className="block font-display text-base font-bold text-ink">{p.title}</span>
-                  <span className="mt-1 block text-sm leading-relaxed text-muted">{p.text}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
+          <nav aria-label="Recruitment services">
+            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-1">
+              {recruitmentServices.map((s) => (
+                <li key={s.slug}>
+                  <a href={`#${s.slug}`} className="card card-hover group flex h-full gap-4 p-5">
+                    <span className="font-display text-sm font-bold text-brand-500">{s.letter}</span>
+                    <span className="flex-1">
+                      <span className="block font-display text-base font-bold text-ink">{s.title}</span>
+                      <span className="mt-1 block text-sm leading-relaxed text-muted">{s.summary}</span>
+                    </span>
+                    <ArrowRight aria-hidden className="mt-0.5 hidden size-4 shrink-0 text-brand-600 transition-transform group-hover:translate-x-1 lg:block" />
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
         }
       />
 
-      <Section labelledBy="all-services">
+      <Section labelledBy="sap-recruitment-title" id="sap-recruitment">
         <div className="container-x">
-          <SectionHeading id="all-services" eyebrow="Service portfolio" title="Eight capability areas, one partner." />
+          <SectionHeading
+            id="sap-recruitment-title"
+            eyebrow="SAP Recruitment & Staffing"
+            title="Three ways we help you build SAP capability."
+            text={recruitmentPositioning.detail}
+          />
+          <div className="mt-12">
+            <RecruitmentServiceDetails />
+          </div>
+        </div>
+      </Section>
+
+      <Section tone="surface" labelledBy="sap-areas-title">
+        <div className="container-x">
+          <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+            <SectionHeading id="sap-areas-title" eyebrow="SAP Expertise" title="SAP Areas We Recruit For." />
+            <Link href="/sap-expertise" data-reveal className="btn btn-secondary shrink-0 self-start md:self-auto">
+              Explore SAP expertise <ArrowRight aria-hidden className="size-4" />
+            </Link>
+          </div>
+          <div className="mt-12">
+            <SapAreasGrid />
+          </div>
+        </div>
+      </Section>
+
+      <Section labelledBy="all-services" id="technology-services">
+        <div className="container-x">
+          <SectionHeading
+            id="all-services"
+            eyebrow="Technology services"
+            title="Technology consulting and engineering."
+            text="Alongside recruitment, our team delivers SAP consulting, software engineering and IT services."
+          />
           <div className="mt-12 grid gap-4 sm:grid-cols-2 xl:grid-cols-4 lg:gap-5">
             {services.map((s, i) => (
               <ServiceCard key={s.slug} service={s} index={i} />
@@ -111,7 +149,12 @@ export default function ServicesPage() {
         </div>
       </Section>
 
-      <CtaBand title="Not sure which service fits?" text="Tell us about your requirement and we'll help you identify the right approach and expertise." />
+      <CtaBand
+        title="Not sure which service fits?"
+        text="Tell us about your vacancy, project or technology requirement and we'll help you find the right approach and expertise."
+        primary={{ label: "Discuss Your Requirements", href: "/contact" }}
+        secondary={{ label: "Upload Your CV", href: "/upload-cv" }}
+      />
     </>
   );
 }

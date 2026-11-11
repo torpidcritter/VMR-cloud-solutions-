@@ -157,17 +157,8 @@ export const industries = [
   },
 ] as const;
 
-/** Client logos supplied by VMR ("Our clients" in the logo document). */
-export const clients = [
-  { name: "Viraj Profiles Limited", logo: "/clients/viraj-profiles.webp", w: 316, h: 160 },
-  { name: "Simelabs", logo: "/clients/simelabs.webp", w: 160, h: 160 },
-  { name: "Atos Syntel", logo: "/clients/atos-syntel.webp", w: 160, h: 160 },
-  { name: "Espouse Technology", logo: "/clients/espouse-technology.webp", w: 551, h: 160 },
-  { name: "NeoSOFT Technologies", logo: "/clients/neosoft.webp", w: 509, h: 160 },
-  { name: "Altimetrik", logo: "/clients/altimetrik.webp", w: 410, h: 160 },
-  { name: "Khatib & Alami", logo: "/clients/khatib-alami.webp", w: 272, h: 160 },
-  { name: "Protiviti", logo: "/clients/protiviti.webp", w: 417, h: 160 },
-] as const;
+/** Client logos now live in ./clients.ts (re-exported here for older imports). */
+export { clients } from "./clients";
 
 /** Certifications and registrations supplied by VMR. */
 export const certifications = [

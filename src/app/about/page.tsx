@@ -185,7 +185,7 @@ export default function AboutPage() {
 
       <ClientsSection />
       <CertificationsSection />
-      <CtaBand />
+      <CtaBand secondary={{ label: "Upload Your CV", href: "/upload-cv" }} />
     </>
   );
 }

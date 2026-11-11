@@ -5,7 +5,8 @@ import type { ReactNode } from "react";
 import { ArrowRight, Mail, Phone } from "lucide-react";
 import { genericIcons, serviceIcons } from "@/components/ui/icons";
 import { Section, SectionHeading } from "@/components/ui/Section";
-import { approach, certifications, clients, whyVmr } from "@/content/company";
+import { approach, certifications, whyVmr } from "@/content/company";
+import { clients } from "@/content/clients";
 import type { Service } from "@/content/services";
 import { site } from "@/content/site";
 
@@ -203,7 +204,7 @@ export function WhyGrid() {
 /* Clients                                                             */
 /* ------------------------------------------------------------------ */
 
-export function ClientsSection({ tone = "white" as "white" | "surface" }) {
+export function ClientsSection({ tone = "white", showLink = false }: { tone?: "white" | "surface"; showLink?: boolean }) {
   return (
     <Section tone={tone} labelledBy="clients-title">
       <div className="container-x">
@@ -214,6 +215,11 @@ export function ClientsSection({ tone = "white" as "white" | "surface" }) {
             title="Organisations we have worked with."
             text="We are proud to have supported technology and business teams across a range of organisations."
           />
+          {showLink && (
+            <Link href="/clients" data-reveal className="link-arrow shrink-0">
+              View our clients <ArrowRight aria-hidden className="size-4" />
+            </Link>
+          )}
         </div>
         <ul className="mt-12 grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-4">
           {clients.map((c, i) => (
@@ -281,12 +287,14 @@ export function CertificationsSection({ tone = "surface" as "white" | "surface" 
 
 export function CtaBand({
   title = "Let's Build Something Together.",
-  text = "Have a technology requirement or business challenge? Connect with our team to explore the right approach.",
+  text = "Hiring SAP talent, planning an SAP project or exploring a technology requirement? Connect with our team to find the right approach.",
   primary = { label: "Talk to Our Team", href: "/contact" },
+  secondary = { label: "Explore Our Services", href: "/services" },
 }: {
   title?: string;
   text?: string;
   primary?: { label: string; href: string };
+  secondary?: { label: string; href: string };
 }) {
   return (
     <section className="on-dark relative overflow-hidden bg-navy-900 text-white" aria-labelledby="cta-title">
@@ -308,8 +316,8 @@ export function CtaBand({
               <Link href={primary.href} className="btn btn-light">
                 {primary.label} <ArrowRight aria-hidden className="size-4" />
               </Link>
-              <Link href="/services" className="btn btn-ghost-dark">
-                Explore Our Services
+              <Link href={secondary.href} className="btn btn-ghost-dark">
+                {secondary.label}
               </Link>
             </div>
           </div>

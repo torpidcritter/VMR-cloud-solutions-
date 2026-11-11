@@ -4,10 +4,16 @@
  */
 import { careerAreas } from "@/content/company";
 import { services } from "@/content/services";
+import { recruitmentServices } from "@/content/recruitment";
 
-export const serviceOptions = [...services.map((s) => s.title), "Other / Not sure"];
+export const recruitmentServiceOptions = recruitmentServices.map((s) => s.title);
+export const technologyServiceOptions = services.map((s) => s.title);
+export const serviceOptions = [...recruitmentServiceOptions, ...technologyServiceOptions, "Other / Not sure"];
 
 export const requirementOptions = [
+  "Hire SAP contractors",
+  "Hire permanent SAP staff",
+  "Staff an SAP project or team",
   "New project or solution",
   "Enhancing an existing system",
   "Team augmentation / staffing",
@@ -20,7 +26,8 @@ export const positionOptions = [...careerAreas, "Software Development Internship
 
 export const experienceOptions = ["Fresher / Student", "Less than 1 year", "1–3 years", "3–5 years", "5–8 years", "8+ years"];
 
-export const RESUME_MAX_BYTES = 5 * 1024 * 1024;
+// 4 MB: Vercel rejects request bodies above 4.5 MB.
+export const RESUME_MAX_BYTES = 4 * 1024 * 1024;
 export const RESUME_TYPES: Record<string, string> = {
   "application/pdf": "pdf",
   "application/msword": "doc",
@@ -76,7 +83,7 @@ export function validateApplication(input: Record<string, unknown>, file?: { siz
   if (!experienceOptions.includes(data.experience)) errors.experience = "Please choose your experience.";
   if (data.message.length > 3000) errors.message = "Message is too long (maximum 3000 characters).";
   if (!file || file.size === 0) errors.resume = "Please attach your resume.";
-  else if (file.size > RESUME_MAX_BYTES) errors.resume = "Resume must be 5 MB or smaller.";
+  else if (file.size > RESUME_MAX_BYTES) errors.resume = "Resume must be 4 MB or smaller.";
   else if (!RESUME_TYPES[file.type] && !/\.(pdf|docx?)$/i.test(file.name)) errors.resume = "Please upload a PDF or Word document.";
   return { data, errors };
 }

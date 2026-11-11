@@ -22,7 +22,7 @@ The site only uses information from the brief and the documents VMR supplied. Th
 
 ## Industries and clients
 - [ ] The 7 industries on the Industries page – keep only sectors with real experience.
-- [ ] Permission to display the 8 client logos (Viraj Profiles, Simelabs, Atos Syntel, Espouse Technology, NeoSOFT, Altimetrik, Khatib & Alami, Protiviti).
+- [ ] Permission to display the 8 client logos (Viraj Profiles, Simelabs, Atos Syntel, Espouse Technology, NeoSOFT, Altimetrik, Khatib & Alami, Protiviti). Edit `src/content/clients.ts` to add or remove.
 - [ ] Testimonials / case studies (none on the site yet).
 
 ## Not added yet (waiting for information)
@@ -33,7 +33,15 @@ The site only uses information from the brief and the documents VMR supplied. Th
 - [ ] Current job openings (careers page invites general applications).
 - [ ] Analytics (e.g. Google Analytics) – add only with an updated cookie policy.
 
+## SAP recruitment (added November 2026)
+- [ ] Market wording "UK & Europe" – the site doesn't claim a UK office. Add a UK address if one exists.
+- [ ] Recruitment service highlights (e.g. "established international contractor pool", "support through to offer").
+- [ ] Candidate promises on /upload-cv: "we never send your CV to an employer without speaking to you first" and deletion on request.
+- [ ] Privacy Policy section 5 (candidates / UK GDPR) and the 12-month retention period – legal review.
+- [ ] Permission from each of the 8 clients to display their logo on the Our Clients page.
+
 ## Launch setup
+- [ ] Private Vercel Blob store connected to the project (for Upload Your CV).
 - [ ] SMTP credentials for the forms (see `.env.example`).
 - [ ] Domain and hosting access for vmrcloudsolutions.com.
 - [ ] Legal review of Privacy Policy, Terms and Cookie Policy (written as sensible templates under Indian law).

@@ -32,6 +32,10 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+
+# local CV storage (development / self-hosted only)
+/.data
 
 # vercel
 .vercel

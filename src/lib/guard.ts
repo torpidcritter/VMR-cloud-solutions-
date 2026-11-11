@@ -26,3 +26,19 @@ export function looksLikeBot(honeypot: unknown, startedAt: unknown) {
 export function clientIp(headers: Headers) {
   return headers.get("x-forwarded-for")?.split(",")[0]?.trim() || headers.get("x-real-ip") || "unknown";
 }
+
+/**
+ * True when a browser request comes from this site. Browsers always send
+ * Origin on POST from fetch/XHR, so a missing or foreign Origin means the
+ * request did not come from our own form.
+ */
+export function sameOrigin(headers: Headers) {
+  const origin = headers.get("origin");
+  const host = headers.get("x-forwarded-host") || headers.get("host");
+  if (!origin || !host) return false;
+  try {
+    return new URL(origin).host === host.split(",")[0].trim();
+  } catch {
+    return false;
+  }
+}
