@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { Building2, Clock, Globe, Mail, MapPin, Phone, UserRound } from "lucide-react";
+import { ArrowUpRight, Boxes, MapPin, Phone, UserRound } from "lucide-react";
 import { ContactForm } from "@/components/forms/ContactForm";
 import { PageHero } from "@/components/sections/shared";
 import { Section } from "@/components/ui/Section";
@@ -9,7 +9,7 @@ import { pageMetadata } from "@/lib/seo";
 export const metadata = pageMetadata({
   title: "Contact Us",
   description:
-    "Contact VMR Cloud Solutions in Bengaluru to discuss SAP, Java, Python, cloud and IT consulting requirements. Call +91 93926 70130 or email info@vmrcloudsolutions.com.",
+    "Contact VMR Cloud Solutions in Bengaluru to discuss SAP, Java, Python, cloud and IT consulting requirements. Call +91 9392670130 or email rajesh.v@vmrcloudsolutions.com.",
   path: "/contact",
 });
 
@@ -43,62 +43,44 @@ export default function ContactPage() {
           </div>
 
           <aside className="space-y-4 lg:col-span-5" aria-label="Contact information">
-            <div className="card p-6 md:p-7">
-              <div className="flex items-center gap-3">
-                <Building2 aria-hidden className="size-5 text-brand-600" />
-                <h2 className="text-base font-semibold">{site.legalName}</h2>
+            <div className="card overflow-hidden">
+              <div className="border-b border-line bg-surface px-6 py-4 md:px-7">
+                <h2 className="text-base font-semibold">Contact us directly</h2>
               </div>
-              <ul className="mt-6 space-y-5 text-[0.95rem]">
-                {site.offices.map((o) => (
-                  <Info key={o.name} icon={MapPin} label={`${o.name} · ${o.city.split(",")[0]}`}>
-                    <address className="not-italic leading-relaxed text-ink">
-                      {o.lines.map((l) => (
-                        <span key={l} className="block">
-                          {l}
+              <ul className="divide-y divide-line">
+                {site.contacts.map((c) => {
+                  const Icon = c.kind === "phone" ? Phone : c.label.startsWith("HR") ? UserRound : Boxes;
+                  return (
+                    <li key={c.label}>
+                      <a href={c.href} className="group flex items-center gap-4 px-6 py-5 transition-colors hover:bg-surface md:px-7">
+                        <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-600 transition-colors group-hover:bg-brand-600 group-hover:text-white">
+                          <Icon aria-hidden className="size-5" strokeWidth={1.75} />
                         </span>
-                      ))}
-                    </address>
-                  </Info>
-                ))}
-                <Info icon={Mail} label="General enquiries">
-                  <a href={`mailto:${site.email.general}`} className="u-link font-medium text-brand-700">
-                    {site.email.general}
-                  </a>
-                </Info>
-                <Info icon={UserRound} label="HR enquiries">
-                  <a href={`mailto:${site.email.hr}`} className="u-link block font-medium text-brand-700">
-                    {site.email.hr}
-                  </a>
-                  <a href={`mailto:${site.email.hrContact}`} className="u-link mt-1 block text-ink-soft">
-                    {site.email.hrContact}
-                  </a>
-                </Info>
-                <Info icon={Phone} label="Telephone">
-                  <a href={site.phone.mobile.href} className="u-link block font-medium text-brand-700">
-                    {site.phone.mobile.display}
-                  </a>
-                  <span className="mt-1 block text-ink-soft">
-                    Office:{" "}
-                    {site.phone.office.map((p, i) => (
-                      <span key={p.href}>
-                        {i > 0 && " / "}
-                        <a href={p.href} className="u-link">
-                          {i === 0 ? p.display : p.display.slice(-3)}
-                        </a>
-                      </span>
-                    ))}
-                  </span>
-                </Info>
-                <Info icon={Globe} label="Website">
-                  <a href={site.url} className="u-link text-ink">
-                    vmrcloudsolutions.com
-                  </a>
-                </Info>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-xs font-semibold uppercase tracking-[0.12em] text-muted">{c.label}</span>
+                          <span className="mt-1 block truncate font-semibold text-ink group-hover:text-brand-700">{c.value}</span>
+                          {c.kind !== "phone" && c.label !== "HR Team" && <span className="block text-sm text-muted">{c.name}</span>}
+                        </span>
+                        <ArrowUpRight aria-hidden className="size-4 shrink-0 text-muted transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-brand-600" />
+                      </a>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
-            <div className="flex items-center gap-3 rounded-2xl bg-surface p-5 text-sm text-ink-soft">
-              <Clock aria-hidden className="size-5 shrink-0 text-brand-600" />
-              Prefer to talk? Call our team directly on the numbers above.
+            <div className="card p-6 md:p-7">
+              <h2 className="text-base font-semibold">Our offices</h2>
+              <ul className="mt-5 space-y-5">
+                {site.offices.map((o) => (
+                  <li key={o.name} className="flex gap-4">
+                    <MapPin aria-hidden className="mt-0.5 size-5 shrink-0 text-brand-600" />
+                    <span>
+                      <span className="block text-xs font-semibold uppercase tracking-[0.12em] text-muted">{o.name}</span>
+                      <address className="mt-1 not-italic leading-relaxed text-ink-soft">{o.lines.join(", ")}</address>
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </div>
           </aside>
         </div>
@@ -139,16 +121,3 @@ export default function ContactPage() {
   );
 }
 
-function Info({ icon: Icon, label, children }: { icon: typeof Mail; label: string; children: React.ReactNode }) {
-  return (
-    <li className="flex gap-4">
-      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-600">
-        <Icon aria-hidden className="size-[1.1rem]" />
-      </span>
-      <span className="min-w-0">
-        <span className="block text-xs font-semibold uppercase tracking-[0.12em] text-muted">{label}</span>
-        <span className="mt-1 block">{children}</span>
-      </span>
-    </li>
-  );
-}

@@ -61,6 +61,7 @@ export function organizationJsonLd() {
     contactPoint: [
       { "@type": "ContactPoint", contactType: "sales", email: site.email.general, telephone: "+91-9392670130", areaServed: "IN" },
       { "@type": "ContactPoint", contactType: "human resources", email: site.email.hr },
+      { "@type": "ContactPoint", contactType: "SAP practice", name: "Rajesh V.", email: site.email.sapHead },
     ],
     sameAs: Object.values(site.social).filter(Boolean),
   };

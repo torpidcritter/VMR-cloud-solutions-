@@ -123,7 +123,7 @@ export default function CareersPage() {
           <div className="lg:col-span-4">
             <SectionHeading id="apply-h" eyebrow="Apply" title="Submit your resume." text="Share your details and resume. We review every application." />
             <div data-reveal className="mt-8 rounded-2xl border border-line bg-card p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">HR enquiries</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">HR team</p>
               <a href={`mailto:${site.email.hr}`} className="mt-3 flex items-center gap-3 font-semibold text-brand-700">
                 <Mail aria-hidden className="size-4" />
                 <span className="u-link">{site.email.hr}</span>

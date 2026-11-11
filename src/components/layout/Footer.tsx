@@ -90,50 +90,30 @@ export function Footer() {
           </FooterCol>
 
           <FooterCol title="Contact" className="lg:col-span-4">
+            {site.contacts.map((c) => (
+              <li key={c.label} className="flex gap-3">
+                {c.kind === "phone" ? (
+                  <Phone aria-hidden className="mt-1 size-4 shrink-0 text-sky-brand" />
+                ) : (
+                  <Mail aria-hidden className="mt-1 size-4 shrink-0 text-sky-brand" />
+                )}
+                <span>
+                  <span className="block text-xs font-semibold uppercase tracking-wider text-slate-400">{c.label}</span>
+                  <a href={c.href} className="u-link mt-0.5 inline-block hover:text-white">
+                    {c.value}
+                  </a>
+                </span>
+              </li>
+            ))}
             {site.offices.map((o) => (
               <li key={o.name} className="flex gap-3">
                 <MapPin aria-hidden className="mt-1 size-4 shrink-0 text-sky-brand" />
                 <span>
                   <span className="block text-xs font-semibold uppercase tracking-wider text-slate-400">{o.name}</span>
-                  <address className="mt-1 not-italic leading-relaxed">
-                    {o.lines.map((l) => (
-                      <span key={l} className="block">
-                        {l}
-                      </span>
-                    ))}
-                  </address>
+                  <address className="mt-0.5 not-italic leading-relaxed">{o.lines.join(", ")}</address>
                 </span>
               </li>
             ))}
-            <li className="flex gap-3">
-              <Mail aria-hidden className="mt-1 size-4 shrink-0 text-sky-brand" />
-              <span className="flex flex-col gap-1">
-                <a href={`mailto:${site.email.general}`} className="u-link hover:text-white">
-                  {site.email.general}
-                </a>
-                <a href={`mailto:${site.email.hr}`} className="u-link hover:text-white">
-                  {site.email.hr}
-                </a>
-              </span>
-            </li>
-            <li className="flex gap-3">
-              <Phone aria-hidden className="mt-1 size-4 shrink-0 text-sky-brand" />
-              <span className="flex flex-col gap-1">
-                <a href={site.phone.mobile.href} className="u-link hover:text-white">
-                  {site.phone.mobile.display}
-                </a>
-                <span>
-                  {site.phone.office.map((p, i) => (
-                    <span key={p.href}>
-                      {i > 0 && " / "}
-                      <a href={p.href} className="u-link hover:text-white">
-                        {i === 0 ? p.display : p.display.slice(-3)}
-                      </a>
-                    </span>
-                  ))}
-                </span>
-              </span>
-            </li>
           </FooterCol>
         </div>
 

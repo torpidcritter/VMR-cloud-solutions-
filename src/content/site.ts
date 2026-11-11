@@ -67,19 +67,22 @@ export const site = {
     },
   ],
 
+  /** The three public contacts, in display order. */
+  contacts: [
+    { label: "Head of SAP Practice", name: "Rajesh V.", value: "rajesh.v@vmrcloudsolutions.com", href: "mailto:rajesh.v@vmrcloudsolutions.com", kind: "email" },
+    { label: "HR Team", name: "Careers & HR", value: "hr@vmrcloudsolutions.com", href: "mailto:hr@vmrcloudsolutions.com", kind: "email" },
+    { label: "Contact Cell", name: "Call us", value: "+91 9392670130", href: "tel:+919392670130", kind: "phone" },
+  ],
+
   email: {
-    general: "info@vmrcloudsolutions.com",
+    /** Business enquiries go to the Head of SAP Practice. */
+    general: "rajesh.v@vmrcloudsolutions.com",
     hr: "hr@vmrcloudsolutions.com",
-    hrContact: "rajesh.v@vmrcloudsolutions.com",
+    sapHead: "rajesh.v@vmrcloudsolutions.com",
   },
 
   phone: {
-    mobile: { display: "+91 93926 70130", href: "tel:+919392670130" },
-    office: [
-      { display: "080-25610-444", href: "tel:+918025610444" },
-      { display: "080-25610-777", href: "tel:+918025610777" },
-      { display: "080-25610-888", href: "tel:+918025610888" },
-    ],
+    mobile: { display: "+91 9392670130", href: "tel:+919392670130" },
   },
 
   /**
