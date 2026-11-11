@@ -4,8 +4,8 @@ import { CV_MAX_BYTES, specialisationOptions, validateCv, validateCvFile } from 
 const valid = {
   fullName: "Priya Sharma",
   email: "Priya@Example.com",
-  phone: "+44 20 7946 0958",
-  location: "London, UK",
+  phone: "+91 98765 43210",
+  location: "Bengaluru, India",
   specialisation: "SAP FI/CO",
   experience: "8–12 years",
   employmentType: "Contract",
@@ -40,7 +40,7 @@ describe("validateCv", () => {
     expect(validateCv({ ...valid, fullName: "<script>" }, file).errors.fullName).toBeDefined();
     expect(validateCv({ ...valid, email: "not-an-email" }, file).errors.email).toBeDefined();
     expect(validateCv({ ...valid, phone: "12" }, file).errors.phone).toBeDefined();
-    expect(validateCv({ ...valid, phone: "+44 (0) 7700-900123" }, file).errors.phone).toBeUndefined();
+    expect(validateCv({ ...valid, phone: "+91 (80) 4567-8901" }, file).errors.phone).toBeUndefined();
   });
 
   it("lists every SAP area from the brief", () => {

@@ -34,10 +34,9 @@ The site only uses information from the brief and the documents VMR supplied. Th
 - [ ] Analytics (e.g. Google Analytics) – add only with an updated cookie policy.
 
 ## SAP recruitment (added November 2026)
-- [ ] Market wording "UK & Europe" – the site doesn't claim a UK office. Add a UK address if one exists.
 - [ ] Recruitment service highlights (e.g. "established international contractor pool", "support through to offer").
 - [ ] Candidate promises on /upload-cv: "we never send your CV to an employer without speaking to you first" and deletion on request.
-- [ ] Privacy Policy section 5 (candidates / UK GDPR) and the 12-month retention period – legal review.
+- [ ] Privacy Policy section 5 (candidates) and the 12-month retention period – legal review.
 - [ ] Permission from each of the 8 clients to display their logo on the Our Clients page.
 
 ## Launch setup

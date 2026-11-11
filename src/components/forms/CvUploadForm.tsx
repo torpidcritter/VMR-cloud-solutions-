@@ -176,7 +176,7 @@ export function CvUploadForm() {
         <Field id="cv-email" label="Email Address" required error={errors.email}>
           <input id="cv-email" name="email" type="email" autoComplete="email" inputMode="email" maxLength={254} className="field" aria-invalid={!!errors.email} aria-describedby={describedBy("cv-email", errors.email)} required />
         </Field>
-        <Field id="cv-phone" label="Phone Number" required error={errors.phone} hint="Include your country code, e.g. +44">
+        <Field id="cv-phone" label="Phone Number" required error={errors.phone} hint="Include your country code, e.g. +91">
           <input id="cv-phone" name="phone" type="tel" autoComplete="tel" inputMode="tel" maxLength={20} className="field" aria-invalid={!!errors.phone} aria-describedby={describedBy("cv-phone", errors.phone, true)} required />
         </Field>
         <Field id="cv-location" label="Current Location" required error={errors.location} hint="City and country">
@@ -308,7 +308,7 @@ export function CvUploadForm() {
             required
           />
           <span>
-            I consent to {site.legalName} storing and processing my personal information and CV to assess my suitability for SAP roles and to contact me about opportunities, in line with the UK GDPR and the{" "}
+            I consent to {site.legalName} storing and processing my personal information and CV to assess my suitability for SAP roles and to contact me about opportunities, in line with applicable data protection law and the{" "}
             <Link href="/privacy-policy#candidates" className="font-semibold text-brand-700 underline underline-offset-2">
               Privacy Policy
             </Link>

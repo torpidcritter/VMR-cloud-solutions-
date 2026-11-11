@@ -9,7 +9,7 @@ import { pageMetadata } from "@/lib/seo";
 export const metadata = pageMetadata({
   title: "SAP Expertise – SAP Areas We Recruit For",
   description:
-    "SAP S/4HANA, HANA, BTP, FI/CO, SD, MM, PP, EWM, HCM, CRM, SCM, QM, PM, PS, BI/BW, ABAP, Fiori/UI5 and Basis: the SAP areas VMR Cloud recruits for across the UK and Europe.",
+    "SAP S/4HANA, HANA, BTP, FI/CO, SD, MM, PP, EWM, HCM, CRM, SCM, QM, PM, PS, BI/BW, ABAP, Fiori/UI5 and Basis: the SAP areas VMR Cloud recruits for.",
   path: "/sap-expertise",
 });
 

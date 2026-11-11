@@ -3,14 +3,13 @@ import { BadgeCheck, LockKeyhole, Mail, Route, UserSearch } from "lucide-react";
 import { CvUploadForm } from "@/components/forms/CvUploadForm";
 import { PageHero } from "@/components/sections/shared";
 import { Section } from "@/components/ui/Section";
-import { recruitmentPositioning } from "@/content/recruitment";
 import { site } from "@/content/site";
 import { pageMetadata } from "@/lib/seo";
 
 export const metadata = pageMetadata({
   title: "Upload Your CV",
   description:
-    "SAP consultants, developers, architects and project managers: upload your CV to be considered for contract and permanent SAP roles across the UK and Europe.",
+    "SAP consultants, developers, architects and project managers: upload your CV to be considered for contract and permanent SAP roles with end customers and SAP service integrators.",
   path: "/upload-cv",
 });
 
@@ -26,7 +25,7 @@ export default function UploadCvPage() {
       <PageHero
         eyebrow="For SAP professionals"
         title="Upload Your CV."
-        text={`Share your profile once and be considered for contract and permanent SAP opportunities with end customers and SAP service integrators across the ${recruitmentPositioning.markets}.`}
+        text={`Share your profile once and be considered for contract and permanent SAP opportunities with end customers and SAP service integrators.`}
         crumbs={[{ label: "Home", href: "/" }, { label: "Upload Your CV" }]}
       >
         <a href="#cv-form" className="btn btn-primary">

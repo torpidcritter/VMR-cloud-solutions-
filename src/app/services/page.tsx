@@ -11,7 +11,7 @@ import { pageMetadata } from "@/lib/seo";
 export const metadata = pageMetadata({
   title: "Our Services",
   description:
-    "Contract SAP recruitment, permanent SAP recruitment and SAP project staffing across the UK and Europe, plus SAP consulting, Java and Python development and technology services from VMR Cloud Solutions.",
+    "Contract SAP recruitment, permanent SAP recruitment and SAP project staffing for end customers and SAP service integrators, plus SAP consulting, Java and Python development and technology services from VMR Cloud Solutions.",
   path: "/services",
 });
 
