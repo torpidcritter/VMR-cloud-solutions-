@@ -1,36 +1,42 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# VMR Cloud Solutions – corporate website
 
-## Getting Started
+Next.js 15 (App Router) + TypeScript + Tailwind CSS v4. Every page is statically generated; only the two form endpoints run on the server.
 
-First, run the development server:
+## Run locally
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env.local      # set MAIL_TRANSPORT=log to test forms without SMTP
+npm run dev                      # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Production: `npm run build && npm start` (Node 18.18+), or deploy to Vercel / any Node host. Set the SMTP variables from `.env.example` in the host's environment settings, otherwise the forms show a friendly "temporarily unavailable" message with the email address instead of a false success.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Where things live
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| What | Where |
+| --- | --- |
+| Company details, contacts, social links | `src/content/site.ts` |
+| Services (8 pages are generated from this) | `src/content/services.ts` |
+| Values, timeline, industries, clients, certifications, careers | `src/content/company.ts` |
+| Colours, typography, buttons, cards | `src/app/globals.css` |
+| Header / footer | `src/components/layout/` |
+| Forms + validation | `src/components/forms/`, `src/lib/forms.ts`, `src/app/api/*` |
+| Logo, client logos, certification badges | `public/brand`, `public/clients`, `public/certifications` |
 
-## Learn More
+Social icons appear in the footer automatically once URLs are added to `site.social`.
 
-To learn more about Next.js, take a look at the following resources:
+## Pages
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Home · About · Services (+8 service pages) · Technology Expertise · Industries · Careers (with resume upload) · Contact (enquiry form + map) · Privacy · Terms · Cookies · 404 · sitemap.xml · robots.txt
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Forms
 
-## Deploy on Vercel
+- Client and server validation share one schema (`src/lib/forms.ts`).
+- Spam protection: hidden honeypot field, minimum fill time, and 5 submissions / 10 min per IP.
+- Resumes: PDF/DOC/DOCX up to 5 MB, file signature checked, sent to HR as an attachment.
+- The success message only shows after the email has actually been sent.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Before going live
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See `CONTENT-CHECKLIST.md` for the items management needs to confirm.
