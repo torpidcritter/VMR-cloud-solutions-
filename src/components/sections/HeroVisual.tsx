@@ -1,6 +1,6 @@
-import { TechVisual } from "./TechVisual";
+import { GlobeVisual } from "./GlobeVisual";
 
-/** Homepage hero visual: the animated code editor and build pipeline. */
+/** Homepage hero visual: the rotating technology globe. */
 export function HeroVisual() {
-  return <TechVisual code="java" className="max-w-[34rem]" />;
+  return <GlobeVisual items={["SAP", "Java", "Python", "Cloud", "APIs", "Data"]} className="max-w-[36rem]" />;
 }

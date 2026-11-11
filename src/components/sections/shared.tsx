@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { TechVisual, type SnippetKey } from "./TechVisual";
+import { GlobeVisual } from "./GlobeVisual";
 import type { ReactNode } from "react";
 import { ArrowRight, Mail, Phone } from "lucide-react";
 import { genericIcons, serviceIcons } from "@/components/ui/icons";
@@ -28,8 +28,8 @@ export function PageHero({
   crumbs?: { label: string; href?: string }[];
   children?: ReactNode;
   aside?: ReactNode;
-  /** Code sample for the animated tech visual on the right (large screens). */
-  visual?: SnippetKey;
+  /** Technology labels for the animated globe on the right (large screens). */
+  visual?: readonly string[];
 }) {
   const split = !!aside || !!visual;
   return (
@@ -81,7 +81,7 @@ export function PageHero({
           )}
           {!aside && visual && (
             <div className="hidden lg:col-span-5 lg:block">
-              <TechVisual code={visual} className="max-w-[28rem] xl:max-w-[31rem]" />
+              <GlobeVisual items={visual} className="max-w-[28rem] xl:max-w-[32rem]" />
             </div>
           )}
         </div>

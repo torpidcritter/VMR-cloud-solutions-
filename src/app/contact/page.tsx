@@ -20,7 +20,7 @@ export default function ContactPage() {
   return (
     <>
       <PageHero
-        visual="api"
+        visual={["SAP", "Java", "Python", "Cloud", "APIs"]}
         eyebrow="Contact Us"
         title="Let's Build Something Together."
         text="Have a technology requirement, business challenge or project idea? Connect with VMR Cloud Solutions to discuss your requirements and explore how our technology and consulting capabilities may support your objectives."

@@ -17,7 +17,7 @@ export default function AboutPage() {
   return (
     <>
       <PageHero
-        visual="cloud"
+        visual={["SAP", "Java", "Python", "Cloud", "APIs", "Automation"]}
         eyebrow="About VMR Cloud Solutions"
         title="Building Technology Partnerships. Enabling Business Growth."
         text="An information technology and consulting company established in September 2017 and headquartered in Bengaluru, Karnataka."
