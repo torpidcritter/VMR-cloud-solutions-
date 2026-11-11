@@ -47,8 +47,8 @@ export default function HomePage() {
               </div>
               <div className="flex items-center gap-2">
                 <Globe2 aria-hidden className="size-4 text-brand-500" />
-                <dt className="sr-only">Coverage</dt>
-                <dd>Recruiting across the {recruitmentPositioning.markets}</dd>
+                <dt className="sr-only">Recruitment</dt>
+                <dd>Contract &amp; permanent SAP talent</dd>
               </div>
               <div className="flex items-center gap-2">
                 <Building2 aria-hidden className="size-4 text-brand-500" />
@@ -90,7 +90,7 @@ export default function HomePage() {
                   ["Established", site.established],
                   ["Headquarters", "Bengaluru, Karnataka"],
                   ["Specialism", "SAP recruitment & staffing"],
-                  ["Recruiting for", "UK & Europe"],
+                  ["Recruiting for", "End customers & SAP integrators"],
                   ["Also delivering", "SAP, Java & Python consulting"],
                 ].map(([k, v]) => (
                   <div key={k} className="grid grid-cols-5 gap-4 px-6 py-3.5 text-[0.925rem]">

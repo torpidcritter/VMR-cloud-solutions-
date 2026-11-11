@@ -2,7 +2,7 @@
 
 Next.js 15 (App Router) + TypeScript + Tailwind CSS v4. Every page is statically generated; only the three form endpoints (`/api/contact`, `/api/careers`, `/api/cv`) run on the server.
 
-The site positions VMR Cloud as a specialist **SAP recruitment & staffing** partner for the UK and Europe (contract, permanent and project staffing), alongside its technology services.
+The site positions VMR Cloud as a specialist **SAP recruitment & staffing** partner (contract, permanent and project staffing for end customers and SAP service integrators), alongside its technology services.
 
 ## Run locally
 
@@ -47,7 +47,7 @@ All pages: Home · About · Services (SAP recruitment + 8 technology service pag
 
 ## Upload Your CV (`/upload-cv` → `POST /api/cv`)
 
-1. Browser and server share one schema (`src/lib/cv.ts`): every field, PDF/DOC/DOCX only, max 4 MB, UK GDPR consent required.
+1. Browser and server share one schema (`src/lib/cv.ts`): every field, PDF/DOC/DOCX only, max 4 MB, data-processing consent required.
 2. The server rejects requests from other sites (Origin check), bots (honeypot + timing) and floods (5 per 10 min per IP).
 3. The file's bytes are checked (`src/lib/file-check.ts`): it must really be a PDF/DOC/DOCX matching its extension, with no macros, scripts, ActiveX or embedded files.
 4. The CV and a JSON record (details + consent time and version) are saved to **private** storage under a random ID (`src/lib/cv-storage.ts`); no personal data appears in file paths.

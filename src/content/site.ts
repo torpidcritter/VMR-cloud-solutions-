@@ -12,7 +12,7 @@ export const site = {
   tagline: "Technology. Talent. Transformation.",
   url: "https://vmrcloudsolutions.com",
   description:
-    "VMR Cloud Solutions is a specialist SAP recruitment and staffing partner, finding contract and permanent SAP consultants for end customers and SAP service integrators across the UK and Europe. Established in 2017 in Bengaluru.",
+    "VMR Cloud Solutions is a specialist SAP recruitment and staffing partner, finding contract and permanent SAP consultants for end customers and SAP service integrators. Established in 2017 in Bengaluru.",
   shortAbout:
     "VMR Cloud Solutions Private Limited is an IT and consulting company based in Bengaluru, India, with technical experience across SAP, Java, Python and enterprise software development.",
 

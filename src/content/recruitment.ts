@@ -6,12 +6,11 @@
 import { site } from "./site";
 
 export const recruitmentPositioning = {
-  eyebrow: "SAP Recruitment & Staffing · UK & Europe",
+  eyebrow: "SAP Recruitment & Staffing",
   title: "SAP Recruitment & SAP Staffing Solutions",
-  summary: `As a specialist SAP recruitment partner, ${site.brand} finds contract and permanent SAP consultants for end customers and SAP service integrators across the UK and Europe.`,
+  summary: `As a specialist SAP recruitment partner, ${site.brand} finds contract and permanent SAP consultants for end customers and SAP service integrators, for implementation, transformation and support projects.`,
   detail:
     "Our consultants specialise in SAP recruitment, so we understand the SAP modules, project types and roles that deliver successful implementations.",
-  markets: "UK & Europe",
   audiences: ["End customers", "SAP service integrators"],
 } as const;
 

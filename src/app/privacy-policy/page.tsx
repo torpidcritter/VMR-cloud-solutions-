@@ -54,7 +54,7 @@ export default function PrivacyPage() {
 
       <h2 id="candidates">5. Candidates and CV submissions</h2>
       <p>
-        When you upload your CV, we use your information to assess your suitability for contract and permanent SAP roles, to contact you about opportunities and to keep a record of your consent. Because we recruit for organisations in the United Kingdom and Europe, we handle candidate data in line with the UK General Data Protection Regulation (UK GDPR) and the Data Protection Act 2018, as well as applicable Indian law.
+        When you upload your CV, we use your information to assess your suitability for contract and permanent SAP roles, to contact you about opportunities and to keep a record of your consent. We handle candidate data in line with applicable law, including the Digital Personal Data Protection Act, 2023.
       </p>
       <ul>
         <li>
@@ -67,10 +67,10 @@ export default function PrivacyPage() {
           <strong>Sharing:</strong> we will not send your CV or details to a prospective employer or client without first discussing the role with you.
         </li>
         <li>
-          <strong>Your rights:</strong> you can ask for a copy of your data, ask us to correct or delete it, object to or restrict its use, and ask for it in a portable format. If you are in the UK, you can also complain to the Information Commissioner&apos;s Office (ico.org.uk).
+          <strong>Your rights:</strong> you can ask for a copy of your data, ask us to correct or delete it, object to or restrict its use, and ask for it in a portable format.
         </li>
         <li>
-          <strong>International transfers:</strong> our team is based in India and our service providers may store data in other countries. Where data leaves the UK or EEA, we rely on appropriate safeguards required by law.
+          <strong>Where data is stored:</strong> our service providers (such as hosting and email) may store data outside India, with appropriate safeguards required by law.
         </li>
       </ul>
 
