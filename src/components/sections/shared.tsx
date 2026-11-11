@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { OrbitVisual } from "./OrbitVisual";
+import { TechVisual, type SnippetKey } from "./TechVisual";
 import type { ReactNode } from "react";
 import { ArrowRight, Mail, Phone } from "lucide-react";
 import { genericIcons, serviceIcons } from "@/components/ui/icons";
@@ -20,7 +20,7 @@ export function PageHero({
   crumbs,
   children,
   aside,
-  orbit,
+  visual,
 }: {
   eyebrow: string;
   title: ReactNode;
@@ -28,10 +28,10 @@ export function PageHero({
   crumbs?: { label: string; href?: string }[];
   children?: ReactNode;
   aside?: ReactNode;
-  /** Labels for the animated visual shown on the right (large screens). */
-  orbit?: readonly string[];
+  /** Code sample for the animated tech visual on the right (large screens). */
+  visual?: SnippetKey;
 }) {
-  const split = !!aside || !!orbit;
+  const split = !!aside || !!visual;
   return (
     <section className="relative -mt-[var(--header-h)] overflow-hidden border-b border-line bg-gradient-to-b from-brand-50/70 via-page to-page pt-[var(--header-h)]">
       <div aria-hidden className="pointer-events-none absolute inset-0 bg-grid mask-radial" />
@@ -79,9 +79,9 @@ export function PageHero({
               {aside}
             </div>
           )}
-          {!aside && orbit && (
+          {!aside && visual && (
             <div className="hidden lg:col-span-5 lg:block">
-              <OrbitVisual items={orbit} className="max-w-[26rem] xl:max-w-[28rem]" />
+              <TechVisual code={visual} className="max-w-[28rem] xl:max-w-[31rem]" />
             </div>
           )}
         </div>

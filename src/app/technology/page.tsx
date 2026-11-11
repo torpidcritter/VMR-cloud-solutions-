@@ -60,7 +60,7 @@ export default function TechnologyPage() {
   return (
     <>
       <PageHero
-        orbit={["SAP", "Java", "Python", "REST APIs", "Cloud", "Testing"]}
+        visual="python"
         eyebrow="Technology Expertise"
         title="Technology expertise that supports business growth."
         text="Our technical experience spans enterprise platforms, software engineering and modern application technologies."

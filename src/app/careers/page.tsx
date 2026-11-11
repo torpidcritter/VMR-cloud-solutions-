@@ -23,7 +23,7 @@ export default function CareersPage() {
   return (
     <>
       <PageHero
-        orbit={["Java", "Python", "SAP", "Frontend", "Android", "iOS"]}
+        visual="java"
         eyebrow="Careers at VMR"
         title="Build Your Future With VMR Cloud Solutions."
         text="Grow with technology. Build with purpose. Whether you are an experienced professional or an aspiring technology enthusiast, explore opportunities to develop your career in IT and consulting."
