@@ -9,12 +9,14 @@ The site only uses information from the brief and the documents VMR supplied. Th
 - [ ] ISO 9001:2015 – the logos were supplied, but no certificate copy. Confirm the certificate is current and the certifying body (IAC / UASL) is correct.
 - [ ] Mission, vision, values and the "Our journey" timeline wording.
 
+- [ ] Andhra Pradesh branch (1-151/1, 2nd Floor, Near Kotapalli, Pileru, Chittoor – 517294; GSTIN 37AAGCV0903J1ZB) – taken from a company invoice; confirm it should be public.
+
 ## Services and expertise
 - [ ] Final list of 8 services and the capability areas under each.
 - [ ] SAP products listed on the SAP page: S/4HANA, ABAP, Fiori, BTP, Basis.
 - [ ] Java / Python frameworks to name (none named yet, e.g. Spring Boot).
 - [ ] Cloud platforms (AWS / Azure / Google Cloud are deliberately not mentioned).
-- [ ] Whether IT staffing is a commercial service, and which models (contract, augmentation, recruitment).
+- [ ] Which IT staffing models to list. Contract staffing is confirmed (company invoice); confirm augmentation and recruitment.
 - [ ] Whether "managed services" / SLAs are offered (the site says "Application Support").
 - [ ] AI / machine learning – not listed as a service.
 

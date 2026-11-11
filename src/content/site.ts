@@ -45,6 +45,28 @@ export const site = {
     mapQuery: "Gayathri Layout, Basavanapura Main Road, K.R. Puram, Bengaluru 560036",
   },
 
+  /** All offices, head office first. Used on the Contact page and in the footer. */
+  offices: [
+    {
+      name: "Head Office",
+      city: "Bengaluru, Karnataka",
+      lines: [
+        "#94, 2nd Floor, 21st Cross, Gayathri Layout",
+        "Basavanapura Main Road, K.R. Puram",
+        "Bengaluru – 560036, Karnataka, India",
+      ],
+      gstin: "29AAGCV0903J1Z8",
+      mapQuery: "Gayathri Layout, Basavanapura Main Road, K.R. Puram, Bengaluru 560036",
+    },
+    {
+      name: "Andhra Pradesh Branch",
+      city: "Pileru, Andhra Pradesh",
+      lines: ["1-151/1, 2nd Floor, Near Kotapalli", "Pileru, Chittoor District", "Andhra Pradesh – 517294, India"],
+      gstin: "37AAGCV0903J1ZB", // from company invoice
+      mapQuery: "Kotapalli, Pileru, Chittoor, Andhra Pradesh 517294",
+    },
+  ],
+
   email: {
     general: "info@vmrcloudsolutions.com",
     hr: "hr@vmrcloudsolutions.com",

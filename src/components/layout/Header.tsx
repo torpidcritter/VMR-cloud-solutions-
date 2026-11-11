@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowRight, ChevronDown, Menu, X } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { serviceIcons } from "@/components/ui/icons";
 import { mainNav, site } from "@/content/site";
 import { services } from "@/content/services";
@@ -80,17 +81,17 @@ export function Header() {
     <header
       className={`sticky top-0 z-50 transition-[background-color,box-shadow,border-color] duration-300 ${
         solid
-          ? "border-b border-line bg-white/90 shadow-[0_6px_24px_-18px_rgba(15,27,51,0.35)] backdrop-blur-md supports-[backdrop-filter]:bg-white/80"
-          : "border-b border-transparent bg-white/0"
+          ? "border-b border-line bg-card/90 shadow-[0_6px_24px_-18px_rgba(15,27,51,0.35)] backdrop-blur-md supports-[backdrop-filter]:bg-card/80"
+          : "border-b border-transparent bg-card/0"
       }`}
     >
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-50 focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:shadow"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-50 focus:rounded-md focus:bg-card focus:px-4 focus:py-2 focus:shadow"
       >
         Skip to content
       </a>
-      <div className="container-x flex h-[4.5rem] items-center justify-between gap-6">
+      <div className="header-x flex h-[var(--header-h)] items-center justify-between gap-6">
         <Logo priority />
 
         <nav aria-label="Main" className="hidden lg:block">
@@ -122,7 +123,7 @@ export function Header() {
                       menuOpen ? "visible translate-y-0 opacity-100" : "invisible -translate-y-1 opacity-0"
                     }`}
                   >
-                    <div className="overflow-hidden rounded-2xl border border-line bg-white shadow-[0_24px_60px_-24px_rgba(15,27,51,0.35)]">
+                    <div className="overflow-hidden rounded-2xl border border-line bg-card shadow-[0_24px_60px_-24px_rgba(15,27,51,0.35)]">
                       <ul className="grid grid-cols-2 gap-1 p-3">
                         {services.map((s) => {
                           const Icon = serviceIcons[s.icon];
@@ -133,7 +134,7 @@ export function Header() {
                                 href={`/services/${s.slug}`}
                                 className={`group/item flex gap-3 rounded-xl p-3 transition-colors hover:bg-surface ${active ? "bg-brand-50" : ""}`}
                               >
-                                <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg border border-line bg-white text-brand-600 transition-colors group-hover/item:border-brand-200 group-hover/item:text-brand-700">
+                                <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg border border-line bg-card text-brand-600 transition-colors group-hover/item:border-brand-200 group-hover/item:text-brand-700">
                                   <Icon aria-hidden className="size-[1.1rem]" strokeWidth={1.75} />
                                 </span>
                                 <span>
@@ -178,12 +179,13 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           <Link href="/contact" className="btn btn-primary hidden !min-h-[2.6rem] !px-5 !text-sm lg:inline-flex">
             Contact Us
           </Link>
           <button
             type="button"
-            className="inline-grid size-11 place-items-center rounded-full border border-line bg-white text-ink lg:hidden"
+            className="inline-grid size-11 place-items-center rounded-full border border-line bg-card text-ink lg:hidden"
             aria-expanded={mobileOpen}
             aria-controls="mobile-menu"
             aria-label={mobileOpen ? "Close menu" : "Open menu"}
@@ -198,7 +200,7 @@ export function Header() {
       {/* Mobile menu */}
       <div
         id="mobile-menu"
-        className={`fixed inset-x-0 bottom-0 top-[4.5rem] z-40 origin-top overflow-y-auto border-t border-line bg-white transition-[opacity,transform,visibility] duration-250 lg:hidden ${
+        className={`fixed inset-x-0 bottom-0 top-[var(--header-h)] z-40 origin-top overflow-y-auto border-t border-line bg-card transition-[opacity,transform,visibility] duration-250 lg:hidden ${
           mobileOpen ? "visible translate-y-0 opacity-100" : "invisible -translate-y-2 opacity-0"
         }`}
       >

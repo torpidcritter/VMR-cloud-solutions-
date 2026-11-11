@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 /*
  * VMR Cloud design tokens.
  * Brand colours are sampled from the supplied logo:
@@ -39,6 +41,11 @@
   --color-line-strong: #cfd7e4;
   --color-surface: #f5f7fb;
   --color-surface-2: #eef2f8;
+  --color-page: #ffffff;
+  --color-card: #ffffff;
+  --color-logo: #ffffff; /* logos are always shown on white */
+  --color-btn: #2a63db;
+  --color-btn-hover: #1f4fb8;
 
   --radius-card: 1rem;
   --shadow-card: 0 1px 2px rgb(15 27 51 / 0.04), 0 8px 24px -12px rgb(15 27 51 / 0.12);
@@ -47,13 +54,53 @@
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* ---------- Dark theme ----------
+ * Same brand colours, re-tuned for dark backgrounds.
+ * Toggled by the .dark class on <html> (set before first paint in layout.tsx).
+ */
+.dark {
+  color-scheme: dark;
+  --color-page: #0a1226;
+  --color-card: #101b36;
+  --color-surface: #0d1730;
+  --color-surface-2: #16223f;
+  --color-ink: #e9eef8;
+  --color-ink-soft: #c4ccdb;
+  --color-muted: #97a3b8;
+  --color-line: #1e2a47;
+  --color-line-strong: #2d3b5e;
+
+  --color-brand-50: #13234a;
+  --color-brand-100: #1a2d5c;
+  --color-brand-200: #2a4688;
+  --color-brand-300: #4d72c9;
+  --color-brand-600: #7ea5ff; /* used for links & icons */
+  --color-brand-700: #a8c2ff;
+  --color-btn: #2f66e0;
+  --color-btn-hover: #3d74ee;
+  --color-accent-600: #ff7a6e;
+
+  --color-navy-900: #0e1b3f;
+  --color-navy-800: #142450;
+  --color-navy-950: #060c1e;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 30px -14px rgb(0 0 0 / 0.6);
+  --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.3), 0 20px 44px -18px rgb(0 0 0 / 0.7);
+}
+
 @layer base {
+  :root {
+    --header-h: 4.75rem;
+  }
+  @media (min-width: 1024px) {
+    :root { --header-h: 5.75rem; }
+  }
   html {
     -webkit-text-size-adjust: 100%;
-    scroll-padding-top: 5.5rem;
+    scroll-padding-top: calc(var(--header-h) + 1rem);
   }
   body {
-    background: #ffffff;
+    background: var(--color-page);
     color: var(--color-ink);
     font-family: var(--font-sans);
     font-feature-settings: "cv11", "ss01";
@@ -86,6 +133,20 @@
   }
   @media (min-width: 768px) {
     .container-x { padding-inline: 2rem; }
+  }
+
+  /* Header runs wider than the page content so the logo sits near the corner. */
+  .header-x {
+    width: 100%;
+    max-width: 92rem;
+    margin-inline: auto;
+    padding-inline: 1rem;
+  }
+  @media (min-width: 768px) {
+    .header-x { padding-inline: 2rem; }
+  }
+  @media (min-width: 1280px) {
+    .header-x { padding-inline: 2.5rem; }
   }
 
   .section-y {
@@ -165,13 +226,13 @@
   .btn svg { transition: transform 250ms var(--ease-out-soft); }
   .btn:hover svg { transform: translateX(3px); }
   .btn-primary {
-    background: var(--color-brand-600);
+    background: var(--color-btn);
     color: #fff;
     box-shadow: 0 8px 20px -10px rgb(42 99 219 / 0.7);
   }
-  .btn-primary:hover { background: var(--color-brand-700); box-shadow: 0 12px 28px -12px rgb(42 99 219 / 0.85); }
+  .btn-primary:hover { background: var(--color-btn-hover); box-shadow: 0 12px 28px -12px rgb(42 99 219 / 0.85); }
   .btn-secondary {
-    background: #fff;
+    background: var(--color-card);
     color: var(--color-ink);
     border: 1px solid var(--color-line-strong);
   }
@@ -210,7 +271,7 @@
 
   /* Cards */
   .card {
-    background: #fff;
+    background: var(--color-card);
     border: 1px solid var(--color-line);
     border-radius: var(--radius-card);
   }
@@ -263,7 +324,7 @@
     min-height: 3rem;
     border-radius: 0.65rem;
     border: 1px solid var(--color-line-strong);
-    background: #fff;
+    background: var(--color-card);
     padding: 0.7rem 0.9rem;
     font-size: 0.95rem;
     color: var(--color-ink);

@@ -67,7 +67,7 @@ export default function AboutPage() {
             <span aria-hidden className="absolute bottom-2 left-[0.6875rem] top-2 w-px bg-gradient-to-b from-brand-500 via-sky-brand to-line" />
             {timeline.map((t, i) => (
               <li key={t.title} data-reveal style={{ ["--reveal-delay" as string]: `${i * 90}ms` }} className="relative pb-12 pl-12 last:pb-0">
-                <span aria-hidden className="absolute left-0 top-1 grid size-6 place-items-center rounded-full border-2 border-brand-500 bg-white">
+                <span aria-hidden className="absolute left-0 top-1 grid size-6 place-items-center rounded-full border-2 border-brand-500 bg-card">
                   <span className="size-2 rounded-full bg-brand-500" />
                 </span>
                 <p className="font-display text-sm font-bold text-brand-600">{t.period}</p>
@@ -96,7 +96,7 @@ export default function AboutPage() {
               </p>
             </div>
           </article>
-          <article data-reveal style={{ ["--reveal-delay" as string]: "100ms" }} className="relative overflow-hidden rounded-3xl border border-line bg-gradient-to-br from-brand-50 to-white p-8 md:p-12">
+          <article data-reveal style={{ ["--reveal-delay" as string]: "100ms" }} className="relative overflow-hidden rounded-3xl border border-line bg-gradient-to-br from-brand-50 to-page p-8 md:p-12">
             <Eye aria-hidden className="size-7 text-brand-600" strokeWidth={1.5} />
             <h3 className="mt-6 text-sm font-semibold uppercase tracking-[0.14em] !text-brand-700">Our Vision</h3>
             <p className="mt-4 font-display text-xl font-semibold leading-snug tracking-tight text-ink md:text-2xl">
@@ -161,7 +161,7 @@ export default function AboutPage() {
       <Section tone="surface" labelledBy="corporate">
         <div className="container-x">
           <SectionHeading id="corporate" eyebrow="Corporate information" title="Company details." />
-          <dl data-reveal className="mt-10 grid overflow-hidden rounded-2xl border border-line bg-white sm:grid-cols-2 lg:grid-cols-3">
+          <dl data-reveal className="mt-10 grid overflow-hidden rounded-2xl border border-line bg-card sm:grid-cols-2 lg:grid-cols-3">
             {[
               ["Registered name", site.legalName],
               ["Company type", site.registration.type],
@@ -177,7 +177,7 @@ export default function AboutPage() {
             ))}
           </dl>
           <p data-reveal className="mt-6 text-sm text-muted">
-            Registered office: {site.address.lines.join(", ")}
+            Registered office: {site.address.lines.join(", ")}. Branch office: {site.offices[1].lines.join(", ")} (GSTIN {site.offices[1].gstin}).
           </p>
         </div>
       </Section>

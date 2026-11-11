@@ -131,7 +131,7 @@ export default async function ServicePage({ params }: Props) {
             {service.landscape.map((t) => (
               <li
                 key={t}
-                className="rounded-full border border-line bg-white px-5 py-2.5 text-[0.925rem] font-semibold text-ink shadow-[0_1px_2px_rgba(15,27,51,0.04)]"
+                className="rounded-full border border-line bg-card px-5 py-2.5 text-[0.925rem] font-semibold text-ink shadow-[0_1px_2px_rgba(15,27,51,0.04)]"
               >
                 {t}
               </li>
@@ -212,7 +212,7 @@ function HeroAside({ service }: { service: Service }) {
     return (
       <div className="grid grid-cols-2 gap-3">
         {service.capabilities.slice(0, 4).map((c, i) => (
-          <div key={c.title} className={`card p-5 ${i === 0 ? "bg-gradient-to-br from-brand-600 to-brand-500 !border-transparent text-white" : ""}`}>
+          <div key={c.title} className={`card p-5 ${i === 0 ? "bg-gradient-to-br from-[#2a63db] to-[#427df4] !border-transparent text-white" : ""}`}>
             {i === 0 ? (
               <Icon aria-hidden className="size-6 text-white" strokeWidth={1.6} />
             ) : (
@@ -228,7 +228,7 @@ function HeroAside({ service }: { service: Service }) {
   return (
     <div className="card overflow-hidden shadow-[var(--shadow-card)]">
       <div className="flex items-center gap-4 border-b border-line bg-surface px-6 py-5">
-        <span className="grid size-11 place-items-center rounded-xl bg-white text-brand-600 ring-1 ring-line">
+        <span className="grid size-11 place-items-center rounded-xl bg-card text-brand-600 ring-1 ring-line">
           <Icon aria-hidden className="size-5" strokeWidth={1.75} />
         </span>
         <span>
@@ -262,7 +262,7 @@ function Capabilities({ service }: { service: Service }) {
             title="What we deliver."
             text={`The areas covered by our ${service.title} service.`}
           />
-          <ul className="mt-12 grid gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/10 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="mt-12 grid gap-px overflow-hidden rounded-2xl border border-white/10 bg-card/10 sm:grid-cols-2 lg:grid-cols-3">
             {service.capabilities.map((c, i) => (
               <li key={c.title} data-reveal style={{ ["--reveal-delay" as string]: `${(i % 3) * 70}ms` }} className="bg-navy-900 p-7 transition-colors hover:bg-navy-800">
                 <span className="font-display text-xs font-bold text-sky-brand">{String(i + 1).padStart(2, "0")}</span>
@@ -273,7 +273,7 @@ function Capabilities({ service }: { service: Service }) {
             {service.capabilities.length % 3 !== 0 && (
               <li
                 data-reveal
-                className={`flex flex-col justify-between gap-6 bg-gradient-to-br from-brand-600 to-brand-700 p-7 ${
+                className={`flex flex-col justify-between gap-6 bg-gradient-to-br from-[#2a63db] to-[#1f4fb8] p-7 ${
                   service.capabilities.length % 3 === 1 ? "lg:col-span-2" : ""
                 } ${service.capabilities.length % 2 === 0 ? "sm:col-span-2 lg:col-span-1" : ""}`}
               >

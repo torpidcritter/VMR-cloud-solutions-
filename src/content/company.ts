@@ -90,6 +90,9 @@ export const values = [
   { title: "Adaptability", text: "Evolving alongside changing business requirements and technological advancements." },
 ] as const;
 
+/** Current year, so the timeline never reads as out of date. */
+const currentYear = new Date().getFullYear();
+
 export const timeline = [
   {
     period: "2017",
@@ -97,14 +100,14 @@ export const timeline = [
     text: "VMR Cloud Solutions Private Limited was incorporated in Bengaluru in September 2017, with a focus on information technology and consulting.",
   },
   {
-    period: "2017 – Present",
+    period: `2018 – ${currentYear}`,
     title: "Growing Through Technology",
     text: "The company has built its experience across enterprise technologies and software engineering, including SAP, Java and Python.",
   },
   {
-    period: "Today",
+    period: `${currentYear}`,
     title: "Enterprise Technology & Consulting",
-    text: "VMR continues to focus on technology consulting, engineering capabilities and supporting the technology requirements of its clients.",
+    text: "Today, VMR continues to focus on technology consulting, engineering capabilities and supporting the technology requirements of its clients.",
   },
 ] as const;
 

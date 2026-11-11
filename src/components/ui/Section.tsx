@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 type Tone = "white" | "surface" | "dark";
 
 const tones: Record<Tone, string> = {
-  white: "bg-white",
+  white: "bg-card",
   surface: "bg-surface",
   dark: "on-dark bg-navy-900 text-white",
 };

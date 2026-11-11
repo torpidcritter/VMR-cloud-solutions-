@@ -39,8 +39,8 @@ export function Footer() {
       <div className="container-x relative pb-10 pt-16 md:pt-20">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-12 lg:gap-8">
           <div className="sm:col-span-2 lg:col-span-3">
-            <Link href="/" className="inline-flex rounded-xl bg-white px-4 py-3" aria-label={`${site.name} – Home`}>
-              <Image src="/brand/vmr-cloud-logo.png" alt={site.legalName} width={953} height={176} sizes="190px" className="h-8 w-auto" />
+            <Link href="/" className="inline-flex rounded-2xl bg-logo px-5 py-3.5 shadow-[0_10px_30px_-12px_rgba(0,0,0,0.5)]" aria-label={`${site.name} – Home`}>
+              <Image src="/brand/vmr-cloud-logo.png" alt={site.legalName} width={953} height={176} sizes="240px" className="h-11 w-auto" />
             </Link>
             <p className="mt-6 font-display text-lg font-semibold tracking-tight text-white">{site.tagline}</p>
             <p className="mt-3 max-w-sm text-[0.925rem] leading-relaxed text-slate-400">{site.shortAbout}</p>
@@ -90,16 +90,21 @@ export function Footer() {
           </FooterCol>
 
           <FooterCol title="Contact" className="lg:col-span-4">
-            <li className="flex gap-3">
-              <MapPin aria-hidden className="mt-1 size-4 shrink-0 text-sky-brand" />
-              <address className="not-italic leading-relaxed">
-                {site.address.lines.map((l) => (
-                  <span key={l} className="block">
-                    {l}
-                  </span>
-                ))}
-              </address>
-            </li>
+            {site.offices.map((o) => (
+              <li key={o.name} className="flex gap-3">
+                <MapPin aria-hidden className="mt-1 size-4 shrink-0 text-sky-brand" />
+                <span>
+                  <span className="block text-xs font-semibold uppercase tracking-wider text-slate-400">{o.name}</span>
+                  <address className="mt-1 not-italic leading-relaxed">
+                    {o.lines.map((l) => (
+                      <span key={l} className="block">
+                        {l}
+                      </span>
+                    ))}
+                  </address>
+                </span>
+              </li>
+            ))}
             <li className="flex gap-3">
               <Mail aria-hidden className="mt-1 size-4 shrink-0 text-sky-brand" />
               <span className="flex flex-col gap-1">
@@ -138,7 +143,7 @@ export function Footer() {
               © {year} {site.legalName}. All Rights Reserved.
             </p>
             <p className="text-slate-500">
-              CIN: {site.registration.cin} · GSTIN: {site.registration.gstin}
+              CIN: {site.registration.cin} · GSTIN: {site.offices[0].gstin} (KA), {site.offices[1].gstin} (AP)
             </p>
           </div>
           <ul className="flex flex-wrap gap-x-6 gap-y-2">

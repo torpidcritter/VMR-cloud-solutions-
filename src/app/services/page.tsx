@@ -57,7 +57,7 @@ export default function ServicesPage() {
             title="What each service covers."
             text="A quick overview of the areas inside each service. Select a service to read more."
           />
-          <ul className="mt-12 divide-y divide-line overflow-hidden rounded-2xl border border-line bg-white">
+          <ul className="mt-12 divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
             {services.map((s) => {
               const Icon = serviceIcons[s.icon];
               return (
@@ -77,7 +77,7 @@ export default function ServicesPage() {
                     </span>
                     <span className="flex flex-wrap gap-2 md:col-span-7">
                       {s.capabilities.slice(0, 4).map((c) => (
-                        <span key={c.title} className="rounded-full border border-line bg-white px-3 py-1 text-[0.8rem] text-ink-soft">
+                        <span key={c.title} className="rounded-full border border-line bg-card px-3 py-1 text-[0.8rem] text-ink-soft">
                           {c.title}
                         </span>
                       ))}

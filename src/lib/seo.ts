@@ -53,6 +53,11 @@ export function organizationJsonLd() {
       postalCode: site.address.postalCode,
       addressCountry: site.address.country,
     },
+    location: site.offices.map((o) => ({
+      "@type": "Place",
+      name: `${site.legalName} – ${o.name}`,
+      address: { "@type": "PostalAddress", streetAddress: o.lines.slice(0, -1).join(", "), addressRegion: o.city.split(", ")[1], addressCountry: "IN" },
+    })),
     contactPoint: [
       { "@type": "ContactPoint", contactType: "sales", email: site.email.general, telephone: "+91-9392670130", areaServed: "IN" },
       { "@type": "ContactPoint", contactType: "human resources", email: site.email.hr },

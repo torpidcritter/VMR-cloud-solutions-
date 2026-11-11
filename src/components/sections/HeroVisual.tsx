@@ -27,16 +27,15 @@ export function HeroVisual() {
           </linearGradient>
         </defs>
         {/* orbits */}
-        <circle cx="50" cy="50" r="41" fill="none" stroke="#DCE6FD" strokeWidth="0.25" />
-        <circle cx="50" cy="50" r="28" fill="none" stroke="#DCE6FD" strokeWidth="0.25" strokeDasharray="0.8 1.4" />
-        <circle cx="50" cy="50" r="15" fill="none" stroke="#B9CDFB" strokeWidth="0.25" />
+        <circle cx="50" cy="50" r="41" fill="none" className="stroke-brand-100" strokeWidth="0.25" />
+        <circle cx="50" cy="50" r="28" fill="none" className="stroke-brand-100" strokeWidth="0.25" strokeDasharray="0.8 1.4" />
+        <circle cx="50" cy="50" r="15" fill="none" className="stroke-brand-200" strokeWidth="0.25" />
         {/* hexagon outline joining the nodes */}
         <polygon
           points={nodes.map((n) => `${n.x},${n.y}`).join(" ")}
           fill="none"
-          stroke="#DCE6FD"
           strokeWidth="0.3"
-          className="anim-draw"
+          className="anim-draw stroke-brand-100"
           style={{ ["--len" as string]: 260, ["--d" as string]: "700ms" }}
           pathLength={260}
         />
@@ -72,12 +71,12 @@ export function HeroVisual() {
 
       {/* hub */}
       <div
-        className="anim-pop absolute left-1/2 top-1/2 grid size-[26%] place-items-center rounded-[22%] border border-brand-100 bg-white shadow-[0_20px_50px_-20px_rgba(31,79,184,0.45)]"
+        className="anim-pop absolute left-1/2 top-1/2 grid size-[26%] place-items-center rounded-[22%] border border-brand-100 bg-card shadow-[0_20px_50px_-20px_rgba(31,79,184,0.45)]"
         style={{ ["--d" as string]: "150ms" }}
       >
         <svg viewBox="0 0 60 52" className="w-[52%]">
           <path d="M30 2 58 50H2Z" fill="#00C8FF" />
-          <path d="M30 22 41 41H19Z" fill="#fff" />
+          <path d="M30 22 41 41H19Z" className="fill-card" />
           <path d="M14 46c14-2 28-9 40-24-6 11-19 21-40 26Z" fill="#FF4E3E" />
         </svg>
       </div>
@@ -86,7 +85,7 @@ export function HeroVisual() {
       {nodes.map((n) => (
         <div
           key={n.label}
-          className="anim-pop absolute left-0 top-0 inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-line bg-white px-3 py-1.5 text-[0.7rem] font-semibold text-ink shadow-[0_8px_20px_-12px_rgba(15,27,51,0.35)] sm:text-xs"
+          className="anim-pop absolute left-0 top-0 inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-line bg-card px-3 py-1.5 text-[0.7rem] font-semibold text-ink shadow-[0_8px_20px_-12px_rgba(15,27,51,0.35)] sm:text-xs"
           style={{ left: `${n.x}%`, top: `${n.y}%`, ["--d" as string]: `${n.d}ms` }}
         >
           <span className="size-1.5 rounded-full bg-gradient-to-br from-brand-500 to-sky-brand" />
@@ -96,7 +95,7 @@ export function HeroVisual() {
 
       {/* system cards */}
       <div
-        className="anim-fade-up absolute -left-2 top-[40%] hidden w-44 rounded-xl border border-line bg-white/95 p-3 shadow-[0_16px_40px_-20px_rgba(15,27,51,0.35)] backdrop-blur sm:block lg:-left-8"
+        className="anim-fade-up absolute -left-2 top-[40%] hidden w-44 rounded-xl border border-line bg-card/95 p-3 shadow-[0_16px_40px_-20px_rgba(15,27,51,0.35)] backdrop-blur sm:block lg:-left-8"
         style={{ ["--d" as string]: "1100ms" }}
       >
         <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-muted">Delivery</p>
@@ -117,7 +116,7 @@ export function HeroVisual() {
       </div>
 
       <div
-        className="anim-fade-up absolute -right-2 bottom-[12%] hidden w-48 rounded-xl border border-line bg-white/95 p-3 shadow-[0_16px_40px_-20px_rgba(15,27,51,0.35)] backdrop-blur sm:block lg:-right-6"
+        className="anim-fade-up absolute -right-2 bottom-[12%] hidden w-48 rounded-xl border border-line bg-card/95 p-3 shadow-[0_16px_40px_-20px_rgba(15,27,51,0.35)] backdrop-blur sm:block lg:-right-6"
         style={{ ["--d" as string]: "1250ms" }}
       >
         <div className="flex items-center justify-between">

@@ -54,14 +54,21 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#ffffff",
+  colorScheme: "light dark",
   width: "device-width",
   initialScale: 1,
 };
 
+const themeScript = `(function(){try{var t=localStorage.getItem("theme");var d=t?t==="dark":window.matchMedia("(prefers-color-scheme: dark)").matches;if(d){document.documentElement.classList.add("dark");var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute("content","#0a1226")}}catch(e){}})();`;
+
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en-IN" className={`${inter.variable} ${manrope.variable}`}>
-      <body className="min-h-dvh bg-white">
+    <html lang="en-IN" className={`${inter.variable} ${manrope.variable}`} suppressHydrationWarning>
+      <head>
+        {/* Apply the saved or system theme before first paint to avoid a flash. */}
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
+      <body className="min-h-dvh bg-page">
         <Header />
         <main id="main">{children}</main>
         <Footer />

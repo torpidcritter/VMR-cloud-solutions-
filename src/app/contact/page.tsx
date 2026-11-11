@@ -14,8 +14,8 @@ export const metadata = pageMetadata({
 });
 
 export default function ContactPage() {
-  const mapSrc = `https://www.google.com/maps?q=${encodeURIComponent(site.address.mapQuery)}&output=embed`;
-  const mapLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(site.address.mapQuery)}`;
+  const mapSrc = (q: string) => `https://www.google.com/maps?q=${encodeURIComponent(q)}&output=embed`;
+  const mapLink = (q: string) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
 
   return (
     <>
@@ -49,15 +49,17 @@ export default function ContactPage() {
                 <h2 className="text-base font-semibold">{site.legalName}</h2>
               </div>
               <ul className="mt-6 space-y-5 text-[0.95rem]">
-                <Info icon={MapPin} label="Address">
-                  <address className="not-italic leading-relaxed text-ink">
-                    {site.address.lines.map((l) => (
-                      <span key={l} className="block">
-                        {l}
-                      </span>
-                    ))}
-                  </address>
-                </Info>
+                {site.offices.map((o) => (
+                  <Info key={o.name} icon={MapPin} label={`${o.name} · ${o.city.split(",")[0]}`}>
+                    <address className="not-italic leading-relaxed text-ink">
+                      {o.lines.map((l) => (
+                        <span key={l} className="block">
+                          {l}
+                        </span>
+                      ))}
+                    </address>
+                  </Info>
+                ))}
                 <Info icon={Mail} label="General enquiries">
                   <a href={`mailto:${site.email.general}`} className="u-link font-medium text-brand-700">
                     {site.email.general}
@@ -102,20 +104,35 @@ export default function ContactPage() {
         </div>
       </Section>
 
-      <section aria-label="Map" className="border-t border-line bg-surface">
+      <section aria-labelledby="offices" className="border-t border-line bg-surface">
         <div className="container-x py-14 md:py-20">
-          <div className="overflow-hidden rounded-2xl border border-line bg-white">
-            <iframe
-              title={`Map showing ${site.legalName}, ${site.address.short}`}
-              src={mapSrc}
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              className="block h-[22rem] w-full md:h-[26rem]"
-            />
-          </div>
-          <a href={mapLink} target="_blank" rel="noopener noreferrer" className="link-arrow mt-4">
-            Open in Google Maps
-          </a>
+          <p className="eyebrow">Our offices</p>
+          <h2 id="offices" className="t-2 mt-4">
+            Where to find us.
+          </h2>
+          <ul className="mt-10 grid gap-6 md:grid-cols-2">
+            {site.offices.map((o) => (
+              <li key={o.name} className="card overflow-hidden">
+                <iframe
+                  title={`Map showing ${site.legalName}, ${o.name}, ${o.city}`}
+                  src={mapSrc(o.mapQuery)}
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  className="block h-64 w-full border-b border-line bg-surface-2 md:h-72"
+                />
+                <div className="flex flex-col gap-4 p-6 sm:flex-row sm:items-start sm:justify-between md:p-7">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-brand-600">{o.name}</p>
+                    <h3 className="mt-2 text-lg font-semibold tracking-tight">{o.city}</h3>
+                    <address className="mt-2 not-italic text-[0.925rem] leading-relaxed text-muted">{o.lines.join(", ")}</address>
+                  </div>
+                  <a href={mapLink(o.mapQuery)} target="_blank" rel="noopener noreferrer" className="link-arrow shrink-0">
+                    Directions
+                  </a>
+                </div>
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
     </>

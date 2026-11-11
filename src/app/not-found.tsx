@@ -4,7 +4,7 @@ import { services } from "@/content/services";
 
 export default function NotFound() {
   return (
-    <section className="relative -mt-[4.5rem] overflow-hidden bg-gradient-to-b from-brand-50/70 to-white pt-[4.5rem]">
+    <section className="relative -mt-[var(--header-h)] overflow-hidden bg-gradient-to-b from-brand-50/70 to-page pt-[var(--header-h)]">
       <div aria-hidden className="pointer-events-none absolute inset-0 bg-grid mask-radial" />
       <div className="container-x relative py-24 md:py-32">
         <p className="eyebrow">Error 404</p>
@@ -23,7 +23,7 @@ export default function NotFound() {
           <ul className="mt-4 flex flex-wrap gap-2">
             {services.map((s) => (
               <li key={s.slug}>
-                <Link href={`/services/${s.slug}`} className="inline-flex rounded-full border border-line bg-white px-4 py-2 text-sm font-medium text-ink-soft transition-colors hover:border-brand-300 hover:text-brand-700">
+                <Link href={`/services/${s.slug}`} className="inline-flex rounded-full border border-line bg-card px-4 py-2 text-sm font-medium text-ink-soft transition-colors hover:border-brand-300 hover:text-brand-700">
                   {s.title}
                 </Link>
               </li>

@@ -70,7 +70,7 @@ export function CareerForm() {
 
   if (status === "success") {
     return (
-      <div role="status" className="flex flex-col items-start rounded-2xl border border-emerald-200 bg-emerald-50/60 p-8 md:p-10">
+      <div role="status" className="flex flex-col items-start rounded-2xl border border-emerald-200 bg-emerald-50/60 dark:border-emerald-500/30 dark:bg-emerald-500/10 p-8 md:p-10">
         <CheckCircle2 aria-hidden className="size-10 text-emerald-600" strokeWidth={1.75} />
         <h3 className="mt-5 text-2xl font-bold tracking-tight">Application received</h3>
         <p className="mt-3 max-w-md leading-relaxed text-ink-soft">

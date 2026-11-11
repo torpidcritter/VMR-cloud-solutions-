@@ -28,7 +28,7 @@ export function PageHero({
   aside?: ReactNode;
 }) {
   return (
-    <section className="relative -mt-[4.5rem] overflow-hidden border-b border-line bg-gradient-to-b from-brand-50/70 via-white to-white pt-[4.5rem]">
+    <section className="relative -mt-[var(--header-h)] overflow-hidden border-b border-line bg-gradient-to-b from-brand-50/70 via-page to-page pt-[var(--header-h)]">
       <div aria-hidden className="pointer-events-none absolute inset-0 bg-grid mask-radial" />
       <div aria-hidden className="pointer-events-none absolute -right-32 -top-32 size-[28rem] rounded-full bg-sky-brand/10 blur-3xl" />
       <div className="container-x relative pb-16 pt-10 md:pb-20 md:pt-14">
@@ -130,7 +130,7 @@ export function ApproachSteps({
       {/* connecting line (desktop) */}
       <span
         aria-hidden
-        className={`absolute left-6 right-6 top-6 hidden h-px lg:block ${dark ? "bg-white/15" : "bg-line"}`}
+        className={`absolute left-6 right-6 top-6 hidden h-px lg:block ${dark ? "bg-card/15" : "bg-line"}`}
       />
       {steps.map((s, i) => (
         <li
@@ -141,11 +141,11 @@ export function ApproachSteps({
         >
           {/* vertical line (mobile) */}
           {i < steps.length - 1 && (
-            <span aria-hidden className={`absolute left-6 top-12 h-[calc(100%-3rem)] w-px md:hidden ${dark ? "bg-white/15" : "bg-line"}`} />
+            <span aria-hidden className={`absolute left-6 top-12 h-[calc(100%-3rem)] w-px md:hidden ${dark ? "bg-card/15" : "bg-line"}`} />
           )}
           <span
             className={`relative z-10 grid size-12 shrink-0 place-items-center rounded-full font-display text-sm font-bold ${
-              dark ? "border border-white/20 bg-navy-900 text-sky-brand" : "border border-brand-200 bg-white text-brand-600 shadow-[0_0_0_6px_#fff]"
+              dark ? "border border-white/20 bg-navy-900 text-sky-brand" : "border border-brand-200 bg-card text-brand-600 shadow-[0_0_0_6px_var(--color-surface)]"
             }`}
           >
             {s.step ?? String(i + 1).padStart(2, "0")}
@@ -174,7 +174,7 @@ export function WhyGrid() {
             key={item.title}
             data-reveal
             style={{ ["--reveal-delay" as string]: `${(i % 3) * 70}ms` }}
-            className="group bg-white p-7 transition-colors duration-300 hover:bg-surface md:p-8"
+            className="group bg-card p-7 transition-colors duration-300 hover:bg-surface md:p-8"
           >
             <div className="flex items-center gap-3">
               <Icon aria-hidden className="size-5 text-brand-600 transition-transform duration-300 group-hover:-translate-y-0.5" strokeWidth={1.75} />
@@ -211,7 +211,7 @@ export function ClientsSection({ tone = "white" as "white" | "surface" }) {
               key={c.name}
               data-reveal
               style={{ ["--reveal-delay" as string]: `${(i % 4) * 60}ms` }}
-              className="group card flex h-28 items-center justify-center p-5 transition-[border-color,box-shadow] duration-300 hover:border-brand-200 hover:shadow-[var(--shadow-card)] md:h-32"
+              className="group card !bg-logo flex h-28 items-center justify-center p-5 transition-[border-color,box-shadow] duration-300 hover:border-brand-200 hover:shadow-[var(--shadow-card)] md:h-32"
             >
               <Image
                 src={c.logo}
@@ -246,7 +246,7 @@ export function CertificationsSection({ tone = "surface" as "white" | "surface" 
         <ul className="mt-12 grid gap-5 md:grid-cols-3">
           {certifications.map((c, i) => (
             <li key={c.title} data-reveal style={{ ["--reveal-delay" as string]: `${i * 80}ms` }} className="card flex flex-col p-6 md:p-7">
-              <div className="flex h-36 items-center justify-center rounded-xl bg-white">
+              <div className="flex h-36 items-center justify-center rounded-xl bg-logo">
                 <Image src={c.logo} alt={`${c.title} – ${c.subtitle}`} width={c.w} height={c.h} sizes="300px" className="max-h-32 w-auto max-w-full object-contain mix-blend-multiply" />
               </div>
               <div className="mt-6 border-t border-line pt-5">
@@ -304,9 +304,9 @@ export function CtaBand({
             </div>
           </div>
           <div className="lg:col-span-5" data-reveal style={{ ["--reveal-delay" as string]: "120ms" }}>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-sm">
-              <a href={`mailto:${site.email.general}`} className="group flex items-center gap-4 rounded-xl p-2 transition-colors hover:bg-white/5">
-                <span className="grid size-11 place-items-center rounded-full bg-white/10 text-sky-brand">
+            <div className="rounded-2xl border border-white/10 bg-card/[0.04] p-6 backdrop-blur-sm">
+              <a href={`mailto:${site.email.general}`} className="group flex items-center gap-4 rounded-xl p-2 transition-colors hover:bg-card/5">
+                <span className="grid size-11 place-items-center rounded-full bg-card/10 text-sky-brand">
                   <Mail aria-hidden className="size-5" />
                 </span>
                 <span>
@@ -314,9 +314,9 @@ export function CtaBand({
                   <span className="block font-medium text-white">{site.email.general}</span>
                 </span>
               </a>
-              <div className="my-2 h-px bg-white/10" />
-              <a href={site.phone.mobile.href} className="group flex items-center gap-4 rounded-xl p-2 transition-colors hover:bg-white/5">
-                <span className="grid size-11 place-items-center rounded-full bg-white/10 text-sky-brand">
+              <div className="my-2 h-px bg-card/10" />
+              <a href={site.phone.mobile.href} className="group flex items-center gap-4 rounded-xl p-2 transition-colors hover:bg-card/5">
+                <span className="grid size-11 place-items-center rounded-full bg-card/10 text-sky-brand">
                   <Phone aria-hidden className="size-5" />
                 </span>
                 <span>

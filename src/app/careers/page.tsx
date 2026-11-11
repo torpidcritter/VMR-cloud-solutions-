@@ -106,7 +106,7 @@ export default function CareersPage() {
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">What interns work on</p>
                 <ul className="mt-5 grid gap-2.5 sm:grid-cols-2">
                   {internshipAreas.map((a) => (
-                    <li key={a} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-[0.95rem] text-slate-200">
+                    <li key={a} className="flex items-center gap-3 rounded-xl border border-white/10 bg-card/[0.04] px-4 py-3 text-[0.95rem] text-slate-200">
                       <span className="size-1.5 shrink-0 rounded-full bg-sky-brand" />
                       {a}
                     </li>
@@ -122,7 +122,7 @@ export default function CareersPage() {
         <div className="container-x grid gap-12 lg:grid-cols-12 lg:gap-16">
           <div className="lg:col-span-4">
             <SectionHeading id="apply-h" eyebrow="Apply" title="Submit your resume." text="Share your details and resume. We review every application." />
-            <div data-reveal className="mt-8 rounded-2xl border border-line bg-white p-6">
+            <div data-reveal className="mt-8 rounded-2xl border border-line bg-card p-6">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">HR enquiries</p>
               <a href={`mailto:${site.email.hr}`} className="mt-3 flex items-center gap-3 font-semibold text-brand-700">
                 <Mail aria-hidden className="size-4" />

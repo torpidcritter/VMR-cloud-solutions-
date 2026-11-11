@@ -5,7 +5,7 @@ export function LegalPage({ title, updated, intro, children }: { title: string; 
   return (
     <>
       <PageHero eyebrow="Legal" title={title} text={intro} crumbs={[{ label: "Home", href: "/" }, { label: title }]} />
-      <section className="bg-white py-16 md:py-20">
+      <section className="bg-card py-16 md:py-20">
         <div className="container-x">
           <div className="prose-legal mx-auto max-w-3xl">
             <p className="!text-sm !text-muted">Last updated: {updated}</p>

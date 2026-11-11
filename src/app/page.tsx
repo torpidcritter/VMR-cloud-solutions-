@@ -20,7 +20,7 @@ export default function HomePage() {
   return (
     <>
       {/* 01 — Hero */}
-      <section className="relative -mt-[4.5rem] overflow-hidden bg-gradient-to-b from-brand-50/80 via-white to-white pt-[4.5rem]">
+      <section className="relative -mt-[var(--header-h)] overflow-hidden bg-gradient-to-b from-brand-50/80 via-page to-page pt-[var(--header-h)]">
         <div aria-hidden className="pointer-events-none absolute inset-0 bg-grid mask-radial" />
         <div aria-hidden className="pointer-events-none absolute -right-40 top-10 size-[34rem] rounded-full bg-sky-brand/10 blur-3xl" />
         <div className="container-x relative grid items-center gap-12 pb-20 pt-10 md:pt-16 lg:grid-cols-12 lg:gap-8 lg:pb-28 lg:pt-20">
@@ -189,7 +189,7 @@ export default function HomePage() {
                   key={t.name}
                   data-reveal
                   style={{ ["--reveal-delay" as string]: `${i * 90}ms` }}
-                  className="group grid grid-cols-[auto_1fr] items-center gap-6 rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition-[background-color,border-color] duration-300 hover:border-sky-brand/40 hover:bg-white/[0.06] md:gap-10 md:p-8"
+                  className="group grid grid-cols-[auto_1fr] items-center gap-6 rounded-2xl border border-white/10 bg-card/[0.03] p-6 transition-[background-color,border-color] duration-300 hover:border-sky-brand/40 hover:bg-card/[0.06] md:gap-10 md:p-8"
                 >
                   <span className="w-28 font-display text-4xl font-bold tracking-tight text-white md:w-40 md:text-5xl">
                     {t.name}
@@ -286,7 +286,7 @@ export default function HomePage() {
       {/* 09 — Careers */}
       <Section tone="surface" labelledBy="careers-title" className="overflow-hidden">
         <div className="container-x">
-          <div className="relative overflow-hidden rounded-3xl border border-line bg-white">
+          <div className="relative overflow-hidden rounded-3xl border border-line bg-card">
             <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 hidden w-1/2 bg-grid mask-radial lg:block" />
             <div className="relative grid gap-10 p-8 md:p-12 lg:grid-cols-12 lg:p-16">
               <div className="lg:col-span-7" data-reveal>
@@ -310,14 +310,14 @@ export default function HomePage() {
                 <ul className="flex flex-wrap gap-2 lg:justify-end">
                   {["SAP Consulting", "Java Development", "Python Development", "Software Engineering", "Quality Assurance", "IT Consulting", "Internships"].map(
                     (r) => (
-                      <li key={r} className="rounded-full border border-line bg-white px-4 py-2 text-sm font-medium text-ink-soft">
+                      <li key={r} className="rounded-full border border-line bg-card px-4 py-2 text-sm font-medium text-ink-soft">
                         {r}
                       </li>
                     ),
                   )}
                 </ul>
                 <div className="mt-6 flex items-center gap-3 rounded-2xl bg-surface p-5 lg:ml-auto lg:max-w-sm">
-                  <span className="grid size-11 place-items-center rounded-full bg-white text-brand-600">
+                  <span className="grid size-11 place-items-center rounded-full bg-card text-brand-600">
                     <Users aria-hidden className="size-5" />
                   </span>
                   <p className="text-sm leading-relaxed text-ink-soft">
