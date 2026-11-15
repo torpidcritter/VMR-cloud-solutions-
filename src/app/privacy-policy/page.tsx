@@ -31,7 +31,7 @@ export default function PrivacyPage() {
           <strong>Job applications:</strong> your full name, email address, phone number, the position applied for, years of experience, your resume and any message you include.
         </li>
         <li>
-          <strong>CV submissions (Upload Your CV):</strong> your full name, email address, phone number, current location, SAP specialisation, years of experience, preferred employment type, your CV and a record of your consent.
+          <strong>CV submissions (Upload Your CV):</strong> your full name, email address, phone number, current and preferred location, SAP specialisation, years of experience, preferred employment type, your CV and a record of your consent.
         </li>
         <li>
           <strong>Technical information:</strong> standard server logs such as IP address, browser type and the pages requested, used for security and to prevent misuse.

@@ -35,6 +35,7 @@ const fields = {
   email: "priya@example.com",
   phone: "+91 98765 43210",
   location: "Bengaluru, India",
+  preferredLocation: "Hyderabad",
   specialisation: "SAP S/4HANA",
   experience: "8–12 years",
   employmentType: "Both",

@@ -18,7 +18,7 @@ import { site } from "@/content/site";
 
 type Status = "idle" | "uploading" | "success" | "error";
 
-const FIELD_ORDER = ["fullName", "email", "phone", "location", "specialisation", "experience", "employmentType", "cv", "consent"];
+const FIELD_ORDER = ["fullName", "email", "phone", "location", "preferredLocation", "specialisation", "experience", "employmentType", "cv", "consent"];
 
 function formatSize(bytes: number) {
   return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
@@ -170,7 +170,7 @@ export function CvUploadForm() {
       <Honeypot />
       <fieldset disabled={uploading} className="contents">
         <legend className="sr-only">Your details</legend>
-        <Field id="cv-name" label="Full Name" required error={errors.fullName}>
+        <Field id="cv-name" label="Full Name As Per PAN" required error={errors.fullName}>
           <input id="cv-name" name="fullName" autoComplete="name" maxLength={100} className="field" aria-invalid={!!errors.fullName} aria-describedby={describedBy("cv-name", errors.fullName)} required />
         </Field>
         <Field id="cv-email" label="Email Address" required error={errors.email}>
@@ -181,6 +181,9 @@ export function CvUploadForm() {
         </Field>
         <Field id="cv-location" label="Current Location" required error={errors.location} hint="City and country">
           <input id="cv-location" name="location" autoComplete="address-level2" maxLength={100} className="field" aria-invalid={!!errors.location} aria-describedby={describedBy("cv-location", errors.location, true)} required />
+        </Field>
+        <Field id="cv-pref-location" label="Preferred Location" required error={errors.preferredLocation} hint="Where you'd like to work, e.g. Bengaluru, Hyderabad or Remote">
+          <input id="cv-pref-location" name="preferredLocation" maxLength={100} className="field" aria-invalid={!!errors.preferredLocation} aria-describedby={describedBy("cv-pref-location", errors.preferredLocation, true)} required />
         </Field>
         <Field id="cv-spec" label="SAP Specialisation / Module" required error={errors.specialisation}>
           <select id="cv-spec" name="specialisation" defaultValue="" className="field" aria-invalid={!!errors.specialisation} aria-describedby={describedBy("cv-spec", errors.specialisation)} required>
