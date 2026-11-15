@@ -62,15 +62,7 @@ export function RecruitmentServiceCards() {
                 <span className="font-display text-sm font-semibold text-muted">{s.letter}</span>
               </div>
               <h3 className="t-3 mt-6">{s.title}</h3>
-              <p className="mt-2.5 text-[0.95rem] leading-relaxed text-muted">{s.summary}</p>
-              <ul className="mt-6 flex-1 space-y-2.5 border-t border-line pt-5">
-                {s.items.map((item) => (
-                  <li key={item} className="flex gap-2.5 text-[0.925rem] text-ink-soft">
-                    <Check aria-hidden className="mt-0.5 size-4 shrink-0 text-brand-600" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
+              <p className="mt-2.5 flex-1 text-[0.95rem] leading-relaxed text-muted">{s.summary}</p>
               <Link href={`/services#${s.slug}`} className="link-arrow mt-7 after:absolute after:inset-0">
                 Learn more<span className="sr-only"> about {s.title}</span> <ArrowRight aria-hidden className="size-4" />
               </Link>

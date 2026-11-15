@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { ApproachSteps, ClientsSection, CtaBand, PageHero } from "@/components/sections/shared";
+import { ApproachSteps, CtaBand, PageHero } from "@/components/sections/shared";
 import { genericIcons } from "@/components/ui/icons";
 import { Section, SectionHeading } from "@/components/ui/Section";
 import { industries } from "@/content/company";
@@ -87,7 +87,6 @@ export default function IndustriesPage() {
         </div>
       </Section>
 
-      <ClientsSection />
       <CtaBand />
     </>
   );
