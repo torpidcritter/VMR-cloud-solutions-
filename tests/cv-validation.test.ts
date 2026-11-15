@@ -6,6 +6,7 @@ const valid = {
   email: "Priya@Example.com",
   phone: "+91 98765 43210",
   location: "Bengaluru, India",
+  preferredLocation: "Hyderabad",
   specialisation: "SAP FI/CO",
   experience: "8–12 years",
   employmentType: "Contract",
@@ -25,7 +26,7 @@ describe("validateCv", () => {
   it("requires every field and consent", () => {
     const { errors } = validateCv({}, null);
     expect(Object.keys(errors).sort()).toEqual(
-      ["consent", "cv", "email", "employmentType", "experience", "fullName", "location", "phone", "specialisation"].sort(),
+      ["consent", "cv", "email", "employmentType", "experience", "fullName", "location", "phone", "preferredLocation", "specialisation"].sort(),
     );
   });
 

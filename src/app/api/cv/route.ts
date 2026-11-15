@@ -65,6 +65,7 @@ export async function POST(req: Request) {
           email: data.email,
           phone: data.phone,
           location: data.location,
+          preferredLocation: data.preferredLocation,
           specialisation: data.specialisation,
           experience: data.experience,
           employmentType: data.employmentType,
@@ -81,10 +82,11 @@ export async function POST(req: Request) {
 
   // The CV is safely stored; the email tells the recruitment team about it.
   const rows: [string, string][] = [
-    ["Full name", data.fullName],
+    ["Full name (as per PAN)", data.fullName],
     ["Email", data.email],
     ["Phone", data.phone],
     ["Current location", data.location],
+    ["Preferred location", data.preferredLocation],
     ["SAP specialisation", data.specialisation],
     ["Total experience", data.experience],
     ["Employment type", data.employmentType],

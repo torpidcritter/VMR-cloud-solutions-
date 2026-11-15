@@ -43,6 +43,7 @@ export type CvFields = {
   email: string;
   phone: string;
   location: string;
+  preferredLocation: string;
   specialisation: string;
   experience: string;
   employmentType: string;
@@ -79,6 +80,7 @@ export function validateCv(input: Record<string, unknown>, file?: FileLike | nul
     email: str(input.email).toLowerCase(),
     phone: str(input.phone),
     location: str(input.location),
+    preferredLocation: str(input.preferredLocation),
     specialisation: str(input.specialisation),
     experience: str(input.experience),
     employmentType: str(input.employmentType),
@@ -86,7 +88,7 @@ export function validateCv(input: Record<string, unknown>, file?: FileLike | nul
   };
   const errors: CvErrors = {};
 
-  if (data.fullName.length < 2) errors.fullName = "Please enter your full name.";
+  if (data.fullName.length < 2) errors.fullName = "Please enter your full name as per PAN.";
   else if (data.fullName.length > 100) errors.fullName = "Name is too long (maximum 100 characters).";
   else if (!NAME_RE.test(data.fullName)) errors.fullName = "Please use letters only in your name.";
 
@@ -97,6 +99,9 @@ export function validateCv(input: Record<string, unknown>, file?: FileLike | nul
 
   if (data.location.length < 2) errors.location = "Please enter your current location.";
   else if (data.location.length > 100) errors.location = "Location is too long (maximum 100 characters).";
+
+  if (data.preferredLocation.length < 2) errors.preferredLocation = "Please enter your preferred work location.";
+  else if (data.preferredLocation.length > 100) errors.preferredLocation = "Preferred location is too long (maximum 100 characters).";
 
   if (!specialisationOptions.includes(data.specialisation)) errors.specialisation = "Please choose your main SAP specialisation.";
   if (!cvExperienceOptions.includes(data.experience)) errors.experience = "Please choose your total years of experience.";
