@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, Eye, Target } from "lucide-react";
-import { CertificationsSection, ClientsSection, CtaBand, PageHero } from "@/components/sections/shared";
+import { CertificationsSection, CtaBand, PageHero } from "@/components/sections/shared";
 import { Section, SectionHeading } from "@/components/ui/Section";
 import { pillars, timeline, values } from "@/content/company";
 import { site } from "@/content/site";
@@ -183,7 +183,6 @@ export default function AboutPage() {
         </div>
       </Section>
 
-      <ClientsSection />
       <CertificationsSection />
       <CtaBand secondary={{ label: "Upload Your CV", href: "/upload-cv" }} />
     </>

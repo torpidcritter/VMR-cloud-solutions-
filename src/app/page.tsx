@@ -1,20 +1,15 @@
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight, Building2, CalendarDays, Globe2 } from "lucide-react";
+import { ArrowRight, Building2, CalendarDays, Globe2 } from "lucide-react";
 import { HeroVisual } from "@/components/sections/HeroVisual";
-import { AudiencePaths, RecruitmentServiceCards, SapAreasGrid } from "@/components/sections/recruitment";
+import { AudiencePaths, RecruitmentServiceCards } from "@/components/sections/recruitment";
 import {
-  CertificationsSection,
-  ClientsSection,
   CtaBand,
-  ServiceCard,
   WhyGrid,
 } from "@/components/sections/shared";
 import { CountUp } from "@/components/ui/CountUp";
-import { genericIcons } from "@/components/ui/icons";
 import { Section, SectionHeading } from "@/components/ui/Section";
-import { industries, pillars, stats } from "@/content/company";
+import { pillars, stats } from "@/content/company";
 import { recruitmentPositioning } from "@/content/recruitment";
-import { services } from "@/content/services";
 import { site } from "@/content/site";
 
 export default function HomePage() {
@@ -154,31 +149,8 @@ export default function HomePage() {
         </div>
       </Section>
 
-      {/* 05 — SAP areas */}
-      <Section tone="dark" labelledBy="sap-areas-title" className="overflow-hidden">
-        <div aria-hidden className="pointer-events-none absolute inset-0 bg-dots-dark mask-fade-b" />
-        <div aria-hidden className="pointer-events-none absolute -left-40 top-0 size-[30rem] rounded-full bg-brand-500/20 blur-[120px]" />
-        <div className="container-x relative">
-          <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-            <SectionHeading
-              dark
-              id="sap-areas-title"
-              eyebrow="SAP Expertise"
-              title="SAP Areas We Recruit For."
-              text="From S/4HANA and BTP to functional modules, development and Basis."
-            />
-            <Link href="/sap-expertise" data-reveal className="btn btn-ghost-dark shrink-0 self-start md:self-auto">
-              Explore SAP expertise <ArrowRight aria-hidden className="size-4" />
-            </Link>
-          </div>
-          <div className="mt-12">
-            <SapAreasGrid dark />
-          </div>
-        </div>
-      </Section>
-
-      {/* 06 — Employers & candidates */}
-      <Section labelledBy="paths-title">
+      {/* 05 — Employers & candidates */}
+      <Section tone="surface" labelledBy="paths-title">
         <div className="container-x">
           <SectionHeading id="paths-title" eyebrow="How we can help" title="For employers and SAP professionals." />
           <div className="mt-12">
@@ -187,33 +159,8 @@ export default function HomePage() {
         </div>
       </Section>
 
-      {/* Clients (supplied by VMR) */}
-      <ClientsSection tone="surface" showLink />
-
-      {/* 07 — Technology services */}
-      <Section labelledBy="services-title">
-        <div className="container-x">
-          <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-            <SectionHeading
-              id="services-title"
-              eyebrow="Technology services"
-              title="Beyond recruitment: technology capabilities."
-              text="Our consulting and engineering teams also deliver SAP, Java, Python and IT services."
-            />
-            <Link href="/services#technology-services" data-reveal className="btn btn-secondary shrink-0 self-start md:self-auto">
-              View technology services <ArrowRight aria-hidden className="size-4" />
-            </Link>
-          </div>
-          <div className="mt-12 grid gap-4 sm:grid-cols-2 xl:grid-cols-4 lg:gap-5">
-            {services.map((s, i) => (
-              <ServiceCard key={s.slug} service={s} index={i} />
-            ))}
-          </div>
-        </div>
-      </Section>
-
-      {/* 08 — Why VMR */}
-      <Section tone="surface" labelledBy="why-title">
+      {/* 06 — Why VMR */}
+      <Section labelledBy="why-title">
         <div className="container-x">
           <SectionHeading
             id="why-title"
@@ -227,52 +174,7 @@ export default function HomePage() {
         </div>
       </Section>
 
-      {/* 09 — Industries */}
-      <Section labelledBy="industries-title">
-        <div className="container-x">
-          <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-            <SectionHeading
-              id="industries-title"
-              eyebrow="Industries"
-              title="Technology for Different Business Environments."
-              text="Different industries face different technological challenges. We start by understanding the requirements of each organization."
-            />
-            <Link href="/industries" data-reveal className="link-arrow shrink-0">
-              All industries <ArrowRight aria-hidden className="size-4" />
-            </Link>
-          </div>
-          <ul className="mt-12 grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-            {industries.map((ind, i) => {
-              const Icon = genericIcons[ind.icon];
-              return (
-                <li key={ind.title} data-reveal style={{ ["--reveal-delay" as string]: `${(i % 4) * 60}ms` }}>
-                  <Link
-                    href="/industries"
-                    className="card card-hover group flex h-full items-center gap-4 p-4 md:p-5"
-                  >
-                    <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-surface text-brand-600 transition-colors group-hover:bg-brand-50">
-                      <Icon aria-hidden className="size-5" strokeWidth={1.75} />
-                    </span>
-                    <span className="text-[0.95rem] font-semibold leading-snug text-ink">{ind.title}</span>
-                  </Link>
-                </li>
-              );
-            })}
-            <li data-reveal style={{ ["--reveal-delay" as string]: "180ms" }}>
-              <Link
-                href="/contact"
-                className="group flex h-full items-center justify-between gap-3 rounded-[var(--radius-card)] border border-dashed border-brand-300 bg-brand-50/60 p-4 text-[0.95rem] font-semibold text-brand-700 transition-colors hover:bg-brand-50 md:p-5"
-              >
-                Discuss your industry
-                <ArrowUpRight aria-hidden className="size-5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-              </Link>
-            </li>
-          </ul>
-        </div>
-      </Section>
-
-      {/* 10 — Certifications & contact CTA */}
-      <CertificationsSection tone="surface" />
+      {/* 07 — Contact CTA */}
       <CtaBand
         title="Let's Talk About Your SAP Requirements."
         text="Whether you're hiring SAP talent or looking for your next SAP role, our team is ready to help."
