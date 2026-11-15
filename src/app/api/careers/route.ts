@@ -45,7 +45,7 @@ export async function POST(req: Request) {
 
   try {
     await sendMail({
-      to: process.env.CAREERS_TO || site.email.hr,
+      to: process.env.CAREERS_TO || site.email.general,
       replyTo: data.email,
       subject: `Job application: ${data.position} – ${data.fullName}`,
       text: rows.map(([k, v]) => `${k}: ${v || "—"}`).join("\n"),

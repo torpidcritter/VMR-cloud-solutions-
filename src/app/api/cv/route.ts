@@ -97,7 +97,7 @@ export async function POST(req: Request) {
   const safeName = `${data.fullName.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "") || "candidate"}-CV.${ext}`;
   try {
     await sendMail({
-      to: process.env.CV_TO || process.env.CAREERS_TO || site.email.hr,
+      to: process.env.CV_TO || process.env.CAREERS_TO || site.email.general,
       replyTo: data.email,
       subject: `New SAP CV: ${data.specialisation} (${data.employmentType}) – ${data.fullName}`,
       text: rows.map(([k, v]) => `${k}: ${v}`).join("\n"),
