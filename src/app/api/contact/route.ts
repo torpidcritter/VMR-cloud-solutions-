@@ -35,7 +35,7 @@ export async function POST(req: Request) {
 
   try {
     await sendMail({
-      to: process.env.CONTACT_TO || site.email.hr,
+      to: process.env.CONTACT_TO || site.email.general,
       replyTo: data.email,
       subject: `Website enquiry: ${data.service} – ${data.name}${data.company ? ` (${data.company})` : ""}`,
       text: rows.map(([k, v]) => `${k}: ${v || "—"}`).join("\n"),

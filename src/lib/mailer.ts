@@ -6,7 +6,7 @@ import nodemailer from "nodemailer";
  *
  * Configure with environment variables (see .env.example):
  *   SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_SECURE, MAIL_FROM
- *   CONTACT_TO (default hr@), CAREERS_TO (default hr@)
+ *   CONTACT_TO, CAREERS_TO, CV_TO (all default to rajesh.v@)
  * For local testing only, MAIL_TRANSPORT=log prints messages instead of sending.
  */
 

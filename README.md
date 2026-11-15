@@ -58,7 +58,7 @@ If storage or email isn't configured, the form says uploads are temporarily unav
 ### Production setup on Vercel
 
 - **Storage:** Vercel dashboard → Storage → Create → **Blob**, access **Private**, connect it to this project. Vercel adds `BLOB_READ_WRITE_TOKEN`. Redeploy. Stored CVs can be browsed and downloaded in the Blob store's file browser.
-- **Email:** set the `SMTP_*` variables and `MAIL_FROM` (see `.env.example`). Optional `CV_TO` (defaults to `CAREERS_TO`, then hr@).
+- **Email:** set the `SMTP_*` variables and `MAIL_FROM` (see `.env.example`). Optional `CV_TO` (defaults to `CAREERS_TO`, then rajesh.v@).
 
 Limits: 4 MB per CV (Vercel's request limit is 4.5 MB). The rate limit is per server instance. Content checks are structural and not an antivirus scan.
 
