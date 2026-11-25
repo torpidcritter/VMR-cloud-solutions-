@@ -8,7 +8,9 @@ import { site } from "@/content/site";
 
 type Status = "idle" | "sending" | "success" | "error";
 
-export function CareerForm() {
+/** `opening` is set on a job page: the position is fixed to that job. */
+export function CareerForm({ opening }: { opening?: { id: string; title: string } } = {}) {
+  const fixed = opening ? { fixedPosition: opening.title } : {};
   const [status, setStatus] = useState<Status>("idle");
   const [errors, setErrors] = useState<Errors>({});
   const [serverError, setServerError] = useState("");
@@ -20,7 +22,7 @@ export function CareerForm() {
     const f = e.target.files?.[0] ?? null;
     setFile(f);
     if (f) {
-      const { errors: errs } = validateApplication({}, f);
+      const { errors: errs } = validateApplication({}, f, fixed);
       setErrors((prev) => {
         const next = { ...prev };
         if (errs.resume) next.resume = errs.resume;
@@ -40,7 +42,7 @@ export function CareerForm() {
     const form = e.currentTarget;
     const fd = new FormData(form);
     const values = Object.fromEntries(Array.from(fd.entries()).filter(([, v]) => typeof v === "string"));
-    const { errors: errs } = validateApplication(values, file);
+    const { errors: errs } = validateApplication(values, file, fixed);
     setErrors(errs);
     setServerError("");
     if (Object.keys(errs).length) {
@@ -104,6 +106,12 @@ export function CareerForm() {
       <Field id="c-phone" label="Phone Number" required error={errors.phone}>
         <input id="c-phone" name="phone" type="tel" autoComplete="tel" inputMode="tel" className="field" aria-invalid={!!errors.phone} aria-describedby={describedBy("c-phone", errors.phone)} required />
       </Field>
+      {opening ? (
+        <>
+          <input type="hidden" name="openingId" value={opening.id} />
+          <input type="hidden" name="position" value={opening.title} />
+        </>
+      ) : (
       <Field id="position" label="Position Applied For" required error={errors.position}>
         <select id="position" name="position" defaultValue="" className="field" aria-invalid={!!errors.position} aria-describedby={describedBy("position", errors.position)} required>
           <option value="" disabled>
@@ -113,7 +121,8 @@ export function CareerForm() {
             <option key={o}>{o}</option>
           ))}
         </select>
-      </Field>
+        </Field>
+      )}
       <Field id="experience" label="Years of Experience" required error={errors.experience}>
         <select id="experience" name="experience" defaultValue="" className="field" aria-invalid={!!errors.experience} aria-describedby={describedBy("experience", errors.experience)} required>
           <option value="" disabled>

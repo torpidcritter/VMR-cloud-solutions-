@@ -67,7 +67,31 @@ Limits: 4 MB per CV (Vercel's request limit is 4.5 MB). The rate limit is per se
 - Client and server validation share one schema (`src/lib/forms.ts`).
 - Spam protection: hidden honeypot field, minimum fill time, and 5 submissions / 10 min per IP.
 - Careers resumes: PDF/DOC/DOCX up to 4 MB, file signature checked, sent to HR as an attachment.
-- The success message only shows after the email has actually been sent.
+- With the database connected, every application, CV and enquiry is also saved for the admin panel. The visitor sees success only once the submission is saved or emailed.
+
+## Admin panel (`/admin`)
+
+Recruitment admin for job openings, applications, the talent bank and enquiries.
+
+**Switching it on (one time):**
+
+1. Vercel → Storage → Create → **Neon** (Postgres) and connect it to this project. Vercel adds `DATABASE_URL`. Tables are created automatically on first use.
+2. Add `ADMIN_SETUP_KEY` (any long secret phrase) under Settings → Environment Variables. Redeploy.
+3. Open `/admin/setup`, enter the key and create the first **Super Admin**. The page stops working once an admin exists.
+4. Add colleagues under **Users**. They get a temporary password and must choose their own at first sign-in.
+
+**What's inside:** dashboard with live counts and a 12-week chart; job openings (draft, publish, pause, close, duplicate, delete) that appear on `/careers` and get their own `/careers/<slug>` page with Google job-posting data; applications with date ranges, filters, status, notes, other applications from the same person, secure resume download and CSV export; talent bank (one profile per email); enquiries with follow-up notes; users and roles; settings (notification emails, careers page fallback); activity log.
+
+**Security:** scrypt-hashed passwords, httpOnly session cookie (8 hours), lockout after 5 wrong passwords, per-IP limit on sign-in, roles checked on the server for every page, action and download. Client names on openings are never sent to the public site. Resumes stay in private storage and are streamed only to signed-in admins with the right role. `/admin` is excluded from search engines.
+
+| Role | Can do |
+| --- | --- |
+| Super Admin | Everything, including users, settings and deleting records |
+| Recruiter / HR | Openings (incl. client names), applications, resumes, CSV export; view enquiries |
+| Sales (SAP Practice) | Update enquiries; view openings and applications; download resumes |
+| Viewer | Read-only dashboard, openings, applications, enquiries |
+
+**Local development:** `DB_DRIVER=pglite PGLITE_DIR=./.data/pglite ADMIN_SETUP_KEY=dev npm run dev` runs an embedded Postgres, no server needed.
 
 ## Before going live
 

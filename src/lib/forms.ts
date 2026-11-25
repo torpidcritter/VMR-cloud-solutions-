@@ -65,7 +65,11 @@ export function validateEnquiry(input: Record<string, unknown>) {
   return { data, errors };
 }
 
-export function validateApplication(input: Record<string, unknown>, file?: { size: number; type: string; name: string } | null) {
+/**
+ * `fixedPosition` is set when applying to a specific job opening: the
+ * position is then that opening's title instead of one of the career areas.
+ */
+export function validateApplication(input: Record<string, unknown>, file?: { size: number; type: string; name: string } | null, opts: { fixedPosition?: string } = {}) {
   const data = {
     fullName: str(input.fullName),
     email: str(input.email),
@@ -79,7 +83,8 @@ export function validateApplication(input: Record<string, unknown>, file?: { siz
   if (data.fullName.length > 100) errors.fullName = "Name is too long.";
   if (!EMAIL_RE.test(data.email)) errors.email = "Please enter a valid email address.";
   if (!PHONE_RE.test(data.phone)) errors.phone = "Please enter a valid phone number.";
-  if (!positionOptions.includes(data.position)) errors.position = "Please choose the position you're applying for.";
+  if (opts.fixedPosition !== undefined) data.position = opts.fixedPosition;
+  else if (!positionOptions.includes(data.position)) errors.position = "Please choose the position you're applying for.";
   if (!experienceOptions.includes(data.experience)) errors.experience = "Please choose your experience.";
   if (data.message.length > 3000) errors.message = "Message is too long (maximum 3000 characters).";
   if (!file || file.size === 0) errors.resume = "Please attach your resume.";

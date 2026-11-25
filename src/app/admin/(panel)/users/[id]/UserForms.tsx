@@ -1,0 +1,55 @@
+"use client";
+
+import { ActionForm, FieldError, SubmitButton } from "@/components/admin/forms";
+import { ROLE_LABELS, ROLES } from "@/lib/auth/permissions";
+import { resetPasswordAction, updateUserAction } from "../../../actions/users";
+
+export function UserForm({ user, self }: { user: { id: string; name: string; role: string; active: boolean }; self: boolean }) {
+  return (
+    <ActionForm action={updateUserAction} className="grid gap-4 sm:grid-cols-2">
+      {(state) => (
+        <>
+          <input type="hidden" name="id" value={user.id} />
+          <div>
+            <label htmlFor="name" className="a-label">
+              Name
+            </label>
+            <input id="name" name="name" defaultValue={user.name} aria-invalid={!!state.errors?.name} className="a-field" />
+            <FieldError error={state.errors?.name} />
+          </div>
+          <div>
+            <label htmlFor="role" className="a-label">
+              Role
+            </label>
+            <select id="role" name="role" defaultValue={user.role} className="a-field">
+              {ROLES.map((r) => (
+                <option key={r} value={r}>
+                  {ROLE_LABELS[r]}
+                </option>
+              ))}
+            </select>
+            <FieldError error={state.errors?.role} />
+          </div>
+          <label className="flex items-center gap-2 text-sm sm:col-span-2">
+            <input type="checkbox" name="active" defaultChecked={user.active} className="size-4 accent-[var(--color-btn)]" />
+            Active (can sign in){self && <span className="text-muted"> · this is your own account</span>}
+          </label>
+          <div className="sm:col-span-2">
+            <SubmitButton>Save</SubmitButton>
+          </div>
+        </>
+      )}
+    </ActionForm>
+  );
+}
+
+export function ResetPasswordForm({ id }: { id: string }) {
+  return (
+    <ActionForm action={resetPasswordAction}>
+      <input type="hidden" name="id" value={id} />
+      <SubmitButton className="a-btn" pendingLabel="Resetting…">
+        Reset password
+      </SubmitButton>
+    </ActionForm>
+  );
+}

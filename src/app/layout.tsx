@@ -1,9 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Manrope } from "next/font/google";
-import { Header } from "@/components/layout/Header";
-import { Footer } from "@/components/layout/Footer";
-import { RevealObserver } from "@/components/ui/RevealObserver";
-import { organizationJsonLd } from "@/lib/seo";
 import { site } from "@/content/site";
 import "./globals.css";
 
@@ -77,16 +73,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         {/* Apply the saved or system theme before first paint to avoid a flash. */}
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className="min-h-dvh bg-page">
-        <Header />
-        <main id="main">{children}</main>
-        <Footer />
-        <RevealObserver />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd()) }}
-        />
-      </body>
+      <body className="min-h-dvh bg-page">{children}</body>
     </html>
   );
 }

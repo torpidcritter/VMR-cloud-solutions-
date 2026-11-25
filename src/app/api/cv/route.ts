@@ -4,7 +4,10 @@ import { isStorageConfigured, storeCv } from "@/lib/cv-storage";
 import { inspectCvFile } from "@/lib/file-check";
 import { clientIp, looksLikeBot, rateLimited, sameOrigin } from "@/lib/guard";
 import { isMailConfigured, sendMail, tableHtml } from "@/lib/mailer";
-import { site } from "@/content/site";
+import { isDbConfigured } from "@/lib/db/client";
+import { recordApplication } from "@/lib/data/applications";
+import { getSettings } from "@/lib/data/settings";
+import { saveSubmission } from "@/lib/submissions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,7 +26,9 @@ export async function POST(req: Request) {
     return json({ ok: false, errors: { cv: "Your CV must be 4 MB or smaller." } }, 413);
   }
 
-  if (!isStorageConfigured() || !isMailConfigured()) {
+  // The CV must be stored, and someone must find out about it: by email,
+  // or in the admin panel when the database is connected.
+  if (!isStorageConfigured() || (!isMailConfigured() && !isDbConfigured())) {
     console.error("[cv] upload unavailable: storage or email is not configured");
     return json({ ok: false, error: UNAVAILABLE }, 503);
   }
@@ -80,6 +85,31 @@ export async function POST(req: Request) {
     return json({ ok: false, error: "We couldn't save your CV just now." }, 503);
   }
 
+  const saved = await saveSubmission("cv", () =>
+    recordApplication({
+      candidate: {
+        email: data.email,
+        fullName: data.fullName,
+        phone: data.phone,
+        location: data.location,
+        preferredLocation: data.preferredLocation,
+        specialisation: data.specialisation,
+        experience: data.experience,
+        employmentType: data.employmentType,
+      },
+      source: "cv_upload",
+      position: data.specialisation,
+      experience: data.experience,
+      details: { employmentType: data.employmentType, preferredLocation: data.preferredLocation, consentVersion: CONSENT_VERSION, consentAt: submittedAt, reference: stored.id },
+      resume: { path: stored.cvPath, name: file!.name.slice(0, 180), size: buffer.length, type: CV_MIME[ext] },
+    }),
+  );
+  const settings = await getSettings();
+  if (!isMailConfigured() || !settings.notifyApplications) {
+    if (!saved) console.error(`[cv] stored ${stored.id} but neither the database nor email recorded it`);
+    return json({ ok: true, reference: stored.id.slice(0, 8).toUpperCase() });
+  }
+
   // The CV is safely stored; the email tells the recruitment team about it.
   const rows: [string, string][] = [
     ["Full name (as per PAN)", data.fullName],
@@ -94,10 +124,11 @@ export async function POST(req: Request) {
     ["Reference", stored.id],
     ["Stored at", `${stored.driver === "vercel-blob" ? "Vercel Blob (private)" : "Server storage"}: ${stored.cvPath}`],
   ];
+  if (saved) rows.push(["Admin reference", `#${saved.number}${saved.repeat ? " (has applied before)" : ""}`]);
   const safeName = `${data.fullName.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "") || "candidate"}-CV.${ext}`;
   try {
     await sendMail({
-      to: process.env.CV_TO || process.env.CAREERS_TO || site.email.hr,
+      to: settings.applicationsEmail,
       replyTo: data.email,
       subject: `New SAP CV: ${data.specialisation} (${data.employmentType}) – ${data.fullName}`,
       text: rows.map(([k, v]) => `${k}: ${v}`).join("\n"),

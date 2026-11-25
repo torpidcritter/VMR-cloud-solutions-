@@ -9,7 +9,7 @@ import { serviceOptions } from "@/lib/forms";
 const root = path.resolve(__dirname, "..");
 const pageExists = (href: string) => {
   const route = href.split(/[?#]/)[0];
-  const file = route === "/" ? "src/app/page.tsx" : `src/app${route}/page.tsx`;
+  const file = route === "/" ? "src/app/(site)/page.tsx" : `src/app/(site)${route}/page.tsx`;
   return existsSync(path.join(root, file));
 };
 

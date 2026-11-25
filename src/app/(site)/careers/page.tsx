@@ -6,6 +6,12 @@ import { Section, SectionHeading } from "@/components/ui/Section";
 import { careerAreas, internshipAreas } from "@/content/company";
 import { site } from "@/content/site";
 import { pageMetadata } from "@/lib/seo";
+import { JobCard } from "@/components/sections/jobs";
+import { listPublicOpenings } from "@/lib/data/openings";
+import { getSettings } from "@/lib/data/settings";
+
+// Job openings come from the admin panel; refresh at least every 5 minutes.
+export const revalidate = 300;
 
 export const metadata = pageMetadata({
   title: "Careers",
@@ -20,7 +26,8 @@ const reasons = [
   { icon: Code2, title: "Real projects", text: "Contribute to technology-driven projects across SAP, Java and Python." },
 ];
 
-export default function CareersPage() {
+export default async function CareersPage() {
+  const [openings, settings] = await Promise.all([listPublicOpenings(), getSettings()]);
   return (
     <>
       <PageHero
@@ -34,8 +41,8 @@ export default function CareersPage() {
           <a href="#apply" className="btn btn-primary">
             Submit Your Resume <ArrowRight aria-hidden className="size-4" />
           </a>
-          <a href="#opportunities" className="btn btn-secondary">
-            Explore Opportunities
+          <a href={openings.length ? "#openings" : "#opportunities"} className="btn btn-secondary">
+            {openings.length ? `View ${openings.length} open role${openings.length === 1 ? "" : "s"}` : "Explore Opportunities"}
           </a>
         </div>
       </PageHero>
@@ -77,6 +84,28 @@ export default function CareersPage() {
         </div>
       </Section>
 
+      {openings.length > 0 && (
+        <Section tone="surface" labelledBy="openings-h" id="openings">
+          <div className="container-x">
+            <SectionHeading
+              id="openings-h"
+              eyebrow="Current openings"
+              title="Roles we're hiring for now."
+              text="Open positions with VMR Cloud Solutions and our clients. Choose a role to see the details and apply."
+            />
+            <ul className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+              {openings.map((job, i) => (
+                <JobCard key={job.id} job={job} index={i} />
+              ))}
+            </ul>
+            <p className="mt-8 text-sm text-muted">
+              Don&apos;t see the right role? <a href="#apply" className="font-semibold text-brand-700 underline underline-offset-2">Send us your resume</a> and we&apos;ll be in touch when one opens.
+            </p>
+          </div>
+        </Section>
+      )}
+
+      {openings.length === 0 && settings.showCareerAreasFallback && (
       <Section tone="surface" labelledBy="opportunities" id="opportunities">
         <div className="container-x">
           <SectionHeading
@@ -95,6 +124,7 @@ export default function CareersPage() {
           </ul>
         </div>
       </Section>
+      )}
 
       <Section labelledBy="internships">
         <div className="container-x">

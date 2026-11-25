@@ -10,6 +10,8 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // The embedded Postgres used for local development loads its own WebAssembly files.
+  serverExternalPackages: ["@electric-sql/pglite"],
   images: { formats: ["image/avif", "image/webp"] },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
