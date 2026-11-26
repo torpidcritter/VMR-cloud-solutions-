@@ -1,7 +1,8 @@
 /**
  * Database schema, applied in order on first use (see client.ts).
  * Never edit a released migration: add a new one with the next version.
- * Every statement is idempotent so concurrent cold starts are safe.
+ * Version 1 is idempotent statement by statement; every later version runs
+ * as one transaction (all or nothing), so it may use plain ALTER TABLE.
  */
 export const MIGRATIONS: { version: number; statements: string[] }[] = [
   {
@@ -128,6 +129,70 @@ export const MIGRATIONS: { version: number; statements: string[] }[] = [
         created_at timestamptz NOT NULL DEFAULT now()
       )`,
       `CREATE INDEX IF NOT EXISTS activity_log_created ON activity_log(created_at DESC)`,
+    ],
+  },
+  {
+    // ATS phase 1: ten-stage pipeline, recruiter assignment, full candidate
+    // profiles, a candidate-wide timeline and more job opening fields.
+    version: 2,
+    statements: [
+      `ALTER TABLE applications DROP CONSTRAINT IF EXISTS applications_status_check`,
+      `UPDATE applications SET status = CASE status WHEN 'under_review' THEN 'screening' WHEN 'interview' THEN 'interview_scheduled' WHEN 'offered' THEN 'offer_released' ELSE status END`,
+      `UPDATE application_events SET
+         from_status = CASE from_status WHEN 'under_review' THEN 'screening' WHEN 'interview' THEN 'interview_scheduled' WHEN 'offered' THEN 'offer_released' ELSE from_status END,
+         to_status = CASE to_status WHEN 'under_review' THEN 'screening' WHEN 'interview' THEN 'interview_scheduled' WHEN 'offered' THEN 'offer_released' ELSE to_status END
+       WHERE kind = 'status'`,
+      `ALTER TABLE applications ADD CONSTRAINT applications_status_check CHECK (status IN
+         ('new','screening','shortlisted','interview_scheduled','interview_completed','selected','offer_released','hired','rejected','on_hold'))`,
+      `ALTER TABLE applications
+         ADD COLUMN assigned_to uuid REFERENCES admin_users(id) ON DELETE SET NULL,
+         ADD COLUMN stage_changed_at timestamptz,
+         ADD COLUMN hired_at timestamptz`,
+      `UPDATE applications a SET stage_changed_at = COALESCE(
+         (SELECT max(e.created_at) FROM application_events e WHERE e.application_id = a.id AND e.kind = 'status'), a.submitted_at)`,
+      `UPDATE applications SET hired_at = stage_changed_at WHERE status = 'hired'`,
+      `ALTER TABLE applications ALTER COLUMN stage_changed_at SET DEFAULT now(), ALTER COLUMN stage_changed_at SET NOT NULL`,
+      `CREATE INDEX applications_status ON applications(status)`,
+      `CREATE INDEX applications_assigned ON applications(assigned_to)`,
+
+      `ALTER TABLE candidates
+         ADD COLUMN tags text[] NOT NULL DEFAULT '{}',
+         ADD COLUMN skills text[] NOT NULL DEFAULT '{}',
+         ADD COLUMN qualifications text NOT NULL DEFAULT '',
+         ADD COLUMN experience_years numeric(4,1) CHECK (experience_years >= 0 AND experience_years <= 60),
+         ADD COLUMN current_title text NOT NULL DEFAULT '',
+         ADD COLUMN current_company text NOT NULL DEFAULT '',
+         ADD COLUMN notice_period text NOT NULL DEFAULT '',
+         ADD COLUMN priority text NOT NULL DEFAULT 'normal' CHECK (priority IN ('low','normal','high','urgent')),
+         ADD COLUMN owner_id uuid REFERENCES admin_users(id) ON DELETE SET NULL,
+         ADD COLUMN follow_up_on date,
+         ADD COLUMN availability text NOT NULL DEFAULT '',
+         ADD COLUMN last_contacted_at timestamptz,
+         ADD COLUMN linkedin_url text NOT NULL DEFAULT '',
+         ADD COLUMN summary text NOT NULL DEFAULT ''`,
+      `CREATE INDEX candidates_tags ON candidates USING gin(tags)`,
+      `CREATE INDEX candidates_skills ON candidates USING gin(skills)`,
+      `CREATE INDEX candidates_follow_up ON candidates(follow_up_on) WHERE follow_up_on IS NOT NULL`,
+      `CREATE INDEX candidates_owner ON candidates(owner_id)`,
+
+      `ALTER TABLE application_events
+         ADD COLUMN candidate_id uuid REFERENCES candidates(id) ON DELETE CASCADE,
+         ADD COLUMN details jsonb NOT NULL DEFAULT '{}'`,
+      `UPDATE application_events e SET candidate_id = a.candidate_id FROM applications a WHERE a.id = e.application_id`,
+      `ALTER TABLE application_events ALTER COLUMN candidate_id SET NOT NULL, ALTER COLUMN application_id DROP NOT NULL`,
+      `ALTER TABLE application_events DROP CONSTRAINT IF EXISTS application_events_kind_check`,
+      `ALTER TABLE application_events ADD CONSTRAINT application_events_kind_check CHECK (kind IN ('note','status','assign','edit','email','interview','task','merge'))`,
+      `CREATE INDEX application_events_candidate ON application_events(candidate_id, created_at)`,
+
+      `ALTER TABLE job_openings
+         ADD COLUMN vacancies int NOT NULL DEFAULT 1 CHECK (vacancies BETWEEN 1 AND 999),
+         ADD COLUMN salary_visible boolean NOT NULL DEFAULT true,
+         ADD COLUMN min_experience_years numeric(4,1) CHECK (min_experience_years >= 0 AND min_experience_years <= 60)`,
+      `CREATE TABLE opening_recruiters (
+         opening_id uuid NOT NULL REFERENCES job_openings(id) ON DELETE CASCADE,
+         user_id uuid NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+         PRIMARY KEY (opening_id, user_id)
+       )`,
     ],
   },
 ];

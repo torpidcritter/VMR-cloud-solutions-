@@ -1,16 +1,41 @@
 /** Labels and option lists shared by the admin UI, the API and validation. */
 
-export const APPLICATION_STATUSES = ["new", "under_review", "shortlisted", "interview", "offered", "hired", "rejected"] as const;
+/** The recruitment pipeline, in order. "rejected" and "on_hold" sit outside the main flow. */
+export const APPLICATION_STATUSES = [
+  "new",
+  "screening",
+  "shortlisted",
+  "interview_scheduled",
+  "interview_completed",
+  "selected",
+  "offer_released",
+  "hired",
+  "rejected",
+  "on_hold",
+] as const;
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
-  new: "New",
-  under_review: "Under review",
+  new: "New Application",
+  screening: "Screening",
   shortlisted: "Shortlisted",
-  interview: "Interview",
-  offered: "Offered",
+  interview_scheduled: "Interview Scheduled",
+  interview_completed: "Interview Completed",
+  selected: "Selected",
+  offer_released: "Offer Released",
   hired: "Hired",
   rejected: "Rejected",
+  on_hold: "On Hold",
 };
+/** The forward stages used for conversion figures (each one counts everyone who reached it or went further). */
+export const FUNNEL_STAGES = ["new", "screening", "shortlisted", "interview_scheduled", "interview_completed", "selected", "offer_released", "hired"] as const;
+/** Stages that count as "shortlisted or further along" on summary cards. */
+export const ACTIVE_SHORTLIST: ApplicationStatus[] = ["shortlisted", "interview_scheduled", "interview_completed", "selected", "offer_released"];
+
+export const CANDIDATE_PRIORITIES = ["low", "normal", "high", "urgent"] as const;
+export type CandidatePriority = (typeof CANDIDATE_PRIORITIES)[number];
+export const CANDIDATE_PRIORITY_LABELS: Record<CandidatePriority, string> = { low: "Low", normal: "Normal", high: "High", urgent: "Urgent" };
+
+export const AVAILABILITY_OPTIONS = ["Immediately", "Within 15 days", "Within 30 days", "Within 60 days", "Within 90 days", "Not looking"] as const;
 
 export const APPLICATION_SOURCES = ["job", "careers", "cv_upload"] as const;
 export type ApplicationSource = (typeof APPLICATION_SOURCES)[number];

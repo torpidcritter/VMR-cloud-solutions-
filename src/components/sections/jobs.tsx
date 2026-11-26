@@ -75,6 +75,7 @@ export function JobMeta({ job }: { job: PublicOpening }) {
     ["Location", `${job.location} (${job.work_mode})`],
     ["Employment type", job.employment_type],
     ["Experience", job.experience],
+    ...(job.vacancies > 1 ? ([["Open positions", String(job.vacancies)]] as [string, string][]) : []),
     ...(job.salary_range ? ([["Salary", job.salary_range]] as [string, string][]) : []),
     ...(job.closing_date ? ([["Apply by", new Date(`${job.closing_date}T00:00:00+05:30`).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Kolkata" })]] as [string, string][]) : []),
   ];

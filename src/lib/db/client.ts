@@ -15,7 +15,12 @@ import { MIGRATIONS } from "./migrations";
  */
 
 export type Row = Record<string, unknown>;
-export type Db = { query<T = Row>(text: string, params?: unknown[]): Promise<T[]> };
+export type Statement = { text: string; params?: unknown[] };
+export type Db = {
+  query<T = Row>(text: string, params?: unknown[]): Promise<T[]>;
+  /** Runs the statements in one transaction: all of them apply, or none do. */
+  tx(statements: Statement[]): Promise<Row[][]>;
+};
 
 export class DbNotConfiguredError extends Error {}
 
@@ -47,6 +52,13 @@ async function connect(): Promise<Db> {
         const res = await pg.query<T>(text, params);
         return normalise<T>(res.rows);
       },
+      async tx(statements: Statement[]) {
+        return pg.transaction(async (t) => {
+          const out: Row[][] = [];
+          for (const st of statements) out.push(normalise<Row>((await t.query<Row>(st.text, st.params ?? [])).rows));
+          return out;
+        });
+      },
     };
   }
   const url = databaseUrl();
@@ -57,6 +69,11 @@ async function connect(): Promise<Db> {
     async query<T>(text: string, params: unknown[] = []) {
       return normalise<T>((await sql.query(text, params)) as unknown[]);
     },
+    async tx(statements: Statement[]) {
+      if (!statements.length) return [];
+      const results = (await sql.transaction(statements.map((st) => sql.query(st.text, st.params ?? [])))) as unknown[][];
+      return results.map((r) => normalise<Row>(r));
+    },
   };
 }
 
@@ -65,8 +82,16 @@ async function migrate(db: Db) {
   const done = new Set((await db.query<{ version: number }>(`SELECT version FROM schema_migrations`)).map((r) => Number(r.version)));
   for (const m of MIGRATIONS) {
     if (done.has(m.version)) continue;
-    for (const statement of m.statements) await db.query(statement);
-    await db.query(`INSERT INTO schema_migrations (version) VALUES ($1) ON CONFLICT DO NOTHING`, [m.version]);
+    if (m.version === 1) {
+      // The original schema: every statement is idempotent.
+      for (const statement of m.statements) await db.query(statement);
+      await db.query(`INSERT INTO schema_migrations (version) VALUES ($1) ON CONFLICT DO NOTHING`, [m.version]);
+      continue;
+    }
+    // Later migrations apply atomically. If two servers race, the second one's
+    // insert into schema_migrations fails, its transaction rolls back, and the
+    // next request finds the migration already applied.
+    await db.tx([...m.statements.map((text) => ({ text })), { text: `INSERT INTO schema_migrations (version) VALUES ($1)`, params: [m.version] }]);
   }
 }
 

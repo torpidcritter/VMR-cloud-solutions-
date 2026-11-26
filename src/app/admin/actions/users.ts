@@ -31,6 +31,7 @@ export async function inviteUserAction(_: ActionState, form: FormData): Promise<
   revalidatePath("/admin/users");
   return {
     ok: true,
+    persist: true,
     message: `Account created. Share these sign-in details with ${name} privately: email ${email.toLowerCase()}, temporary password ${password}. They'll choose their own password when they first sign in. This password won't be shown again.`,
   };
 }
@@ -71,5 +72,5 @@ export async function resetPasswordAction(_: ActionState, form: FormData): Promi
   await endAllSessions(user.id);
   await logActivity(me.id, "update", "user", user.id, `Reset the password for ${user.name}`);
   revalidatePath(`/admin/users/${user.id}`);
-  return { ok: true, message: `New temporary password for ${user.name}: ${password}. Share it privately; they'll set their own when they sign in. Any lock on the account is cleared.` };
+  return { ok: true, persist: true, message: `New temporary password for ${user.name}: ${password}. Share it privately; they'll set their own when they sign in. Any lock on the account is cleared.` };
 }

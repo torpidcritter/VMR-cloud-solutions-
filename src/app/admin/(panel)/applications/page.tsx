@@ -3,7 +3,7 @@ import Link from "next/link";
 import { CheckCircle2, Download, FileText, Inbox, Paperclip, Sparkles, Star } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/session";
 import { can } from "@/lib/auth/permissions";
-import { clientNames, listApplications, openingOptions } from "@/lib/data/applications";
+import { clientNames, listApplications, openingOptions, recruiterOptions } from "@/lib/data/applications";
 import { APPLICATION_SOURCES, APPLICATION_SOURCE_LABELS, APPLICATION_STATUSES, APPLICATION_STATUS_LABELS, DATE_RANGES } from "@/lib/data/constants";
 import { ApplicationStatusBadge, Badge, EmptyState, Notice, PageHeader, Pagination, StatCard, formatDateTime, withParams } from "@/components/admin/ui";
 import { applicationFilters } from "../../filters";
@@ -16,11 +16,12 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
   const me = await requireAdmin("applications.view");
   const sp = await searchParams;
   const showClient = can(me.role, "openings.viewClient");
-  const { filters, search, page } = applicationFilters(sp, showClient);
-  const [{ rows, stats }, openings, clients] = await Promise.all([
+  const { filters, search, page } = applicationFilters(sp, showClient, me.id);
+  const [{ rows, stats }, openings, clients, recruiters] = await Promise.all([
     listApplications(filters, { page, pageSize: PAGE_SIZE }),
     openingOptions(),
     showClient ? clientNames() : Promise.resolve([] as string[]),
+    recruiterOptions(),
   ]);
   const current = { ...search } as Record<string, string | undefined>;
   const url = (changes: Record<string, string | undefined>) => withParams("/admin/applications", current, { page: undefined, ...changes });
@@ -45,8 +46,8 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard label={filtered ? "Matching applications" : "Total applications"} value={stats.total} icon={FileText} href={url({ status: undefined })} />
         <StatCard label="New" value={stats.new} icon={Sparkles} tone="amber" href={url({ status: "new" })} />
-        <StatCard label="Under review" value={stats.under_review} icon={Inbox} tone="grey" href={url({ status: "under_review" })} />
-        <StatCard label="Shortlisted to offered" value={stats.shortlisted} icon={Star} tone="violet" href={url({ status: "shortlisted" })} />
+        <StatCard label="Screening" value={stats.screening} icon={Inbox} tone="grey" href={url({ status: "screening" })} />
+        <StatCard label="Shortlisted to offer" value={stats.shortlisted} icon={Star} tone="violet" href={url({ status: "shortlisted" })} />
         <StatCard label="With resume" value={stats.resumes} icon={Paperclip} tone="cyan" />
       </div>
 
@@ -136,7 +137,22 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
           </label>
           <input id="to" name="to" type="date" defaultValue={search.range ? "" : search.to} className="a-field" />
         </div>
-        <div className="flex items-end gap-2 lg:col-span-4 lg:justify-end">
+        <div>
+          <label htmlFor="assigned" className="a-label">
+            Recruiter
+          </label>
+          <select id="assigned" name="assigned" defaultValue={search.assigned ?? ""} className="a-field">
+            <option value="">Anyone</option>
+            <option value="me">Assigned to me</option>
+            <option value="none">Unassigned</option>
+            {recruiters.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-end gap-2 lg:col-span-3 lg:justify-end">
           {filtered && (
             <Link href="/admin/applications" className="a-btn">
               Clear
@@ -157,6 +173,7 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
                   <th>Position</th>
                   <th>Source</th>
                   <th>Status</th>
+                  <th>Recruiter</th>
                   <th>Resume</th>
                   <th>Received</th>
                 </tr>
@@ -190,6 +207,7 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
                     <td>
                       <ApplicationStatusBadge status={a.status} />
                     </td>
+                    <td className="whitespace-nowrap">{a.assigned_name ?? <span className="text-muted">—</span>}</td>
                     <td>
                       {a.resume_path ? (
                         can(me.role, "resumes.download") ? (

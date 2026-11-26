@@ -3,7 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth/session";
 import { can } from "@/lib/auth/permissions";
-import { getOpening } from "@/lib/data/openings";
+import { getOpening, getOpeningRecruiters } from "@/lib/data/openings";
+import { recruiterOptions } from "@/lib/data/applications";
 import { ConfirmButton, SubmitButton } from "@/components/admin/forms";
 import { Notice, OpeningStatusBadge, PageHeader, formatDateTime } from "@/components/admin/ui";
 import { deleteOpeningAction, duplicateOpeningAction, setOpeningStatusAction } from "../../../actions/openings";
@@ -19,6 +20,8 @@ export default async function OpeningPage({ params, searchParams }: { params: Pr
   if (!o) notFound();
   const editable = can(me.role, "openings.edit");
   const showClient = can(me.role, "openings.viewClient");
+  const [assigned, recruiters] = await Promise.all([getOpeningRecruiters(o.id), recruiterOptions()]);
+  const assignedNames = recruiters.filter((r) => assigned.includes(r.id)).map((r) => r.name);
 
   const statusButton = (status: string, label: string) => (
     <form action={setOpeningStatusAction}>
@@ -100,7 +103,12 @@ export default async function OpeningPage({ params, searchParams }: { params: Pr
             skills: o.skills.join(", "),
             status: o.status,
             closing_date: o.closing_date ?? "",
+            vacancies: String(o.vacancies),
+            salary_visible: o.salary_visible ? "show" : "hide",
+            min_experience_years: o.min_experience_years != null ? String(o.min_experience_years) : "",
+            recruiters: assigned,
           }}
+          recruiterChoices={recruiters}
         />
       ) : (
         <div className="card grid gap-3 p-5 text-sm">
@@ -108,6 +116,8 @@ export default async function OpeningPage({ params, searchParams }: { params: Pr
           <p><span className="text-muted">Shown as:</span> {o.public_client_label}</p>
           <p><span className="text-muted">Location:</span> {o.location} · {o.work_mode}</p>
           <p><span className="text-muted">Type:</span> {o.employment_type} · {o.experience}</p>
+          <p><span className="text-muted">Positions:</span> {o.vacancies}</p>
+          <p><span className="text-muted">Recruiters:</span> {assignedNames.join(", ") || "None assigned"}</p>
           <p className="whitespace-pre-line">{o.description}</p>
         </div>
       )}

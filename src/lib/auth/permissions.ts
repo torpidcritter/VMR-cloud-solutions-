@@ -19,6 +19,8 @@ export type Permission =
   | "openings.edit"
   | "openings.delete"
   | "openings.viewClient"
+  | "candidates.edit"
+  | "candidates.merge"
   | "applications.view"
   | "applications.update"
   | "applications.delete"
@@ -36,6 +38,8 @@ const ALL: Permission[] = [
   "openings.edit",
   "openings.delete",
   "openings.viewClient",
+  "candidates.edit",
+  "candidates.merge",
   "applications.view",
   "applications.update",
   "applications.delete",
@@ -55,6 +59,7 @@ const GRANTS: Record<Role, Permission[]> = {
     "openings.view",
     "openings.edit",
     "openings.viewClient",
+    "candidates.edit",
     "applications.view",
     "applications.update",
     "applications.export",

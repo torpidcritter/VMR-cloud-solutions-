@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db/client";
+import { ACTIVE_SHORTLIST } from "./constants";
 
 /** Every dashboard figure is counted from live records. */
 export async function dashboardStats() {
@@ -7,8 +8,8 @@ export async function dashboardStats() {
   const [apps] = await conn.query<Record<string, number>>(
     `SELECT count(*)::int AS total,
             count(*) FILTER (WHERE status = 'new')::int AS new,
-            count(*) FILTER (WHERE status = 'under_review')::int AS under_review,
-            count(*) FILTER (WHERE status IN ('shortlisted','interview','offered'))::int AS shortlisted,
+            count(*) FILTER (WHERE status = 'screening')::int AS screening,
+            count(*) FILTER (WHERE status IN (${ACTIVE_SHORTLIST.map((x) => `'${x}'`).join(",")}))::int AS shortlisted,
             count(*) FILTER (WHERE status = 'hired')::int AS hired,
             count(*) FILTER (WHERE status = 'rejected')::int AS rejected,
             count(*) FILTER (WHERE submitted_at >= now() - interval '7 days')::int AS last7

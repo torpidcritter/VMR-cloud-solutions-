@@ -1,14 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Download, Eye, Mail, Phone } from "lucide-react";
+import { Download, Eye, Mail, Phone, UserRound } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/session";
 import { can } from "@/lib/auth/permissions";
-import { getApplication } from "@/lib/data/applications";
+import { getApplication, recruiterOptions } from "@/lib/data/applications";
 import { APPLICATION_SOURCE_LABELS, APPLICATION_STATUSES, APPLICATION_STATUS_LABELS } from "@/lib/data/constants";
+import { EVENT_KIND_LABELS, EventText, PriorityBadge } from "@/components/admin/candidate-ui";
 import { ConfirmButton, SubmitButton } from "@/components/admin/forms";
-import { ApplicationStatusBadge, PageHeader, Panel, formatDateTime } from "@/components/admin/ui";
+import { ApplicationStatusBadge, Badge, PageHeader, Panel, formatDate, formatDateTime } from "@/components/admin/ui";
 import { deleteApplicationAction, setApplicationStatusAction } from "../../../actions/applications";
+import { assignApplicationAction } from "../../../actions/pipeline";
 import { NoteForm } from "./NoteForm";
 
 export const metadata: Metadata = { title: "Application" };
@@ -22,6 +24,7 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
   const showClient = can(me.role, "openings.viewClient");
   const editable = can(me.role, "applications.update");
   const isPdf = a.resume_path?.endsWith(".pdf");
+  const recruiters = editable ? await recruiterOptions() : [];
 
   const facts: [string, React.ReactNode][] = [
     ["Position", a.position],
@@ -45,11 +48,15 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
         title={a.full_name}
         description={
           <span className="inline-flex flex-wrap items-center gap-2">
-            <ApplicationStatusBadge status={a.status} /> Application #{a.number} · received {formatDateTime(a.submitted_at)}
+            <ApplicationStatusBadge status={a.status} /> <PriorityBadge priority={a.priority} /> Application #{a.number} · received {formatDateTime(a.submitted_at)} · in this stage since{" "}
+            {formatDate(a.stage_changed_at)}
           </span>
         }
         actions={
           <>
+            <Link href={`/admin/candidates/${a.candidate_id}`} className="a-btn">
+              <UserRound aria-hidden className="size-4" /> Candidate profile
+            </Link>
             <a href={`mailto:${a.email}`} className="a-btn">
               <Mail aria-hidden className="size-4" /> Email
             </a>
@@ -120,17 +127,11 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
               <ol className="mt-4 grid gap-3">
                 {a.events.map((e) => (
                   <li key={e.id} className="rounded-lg border border-line p-3 text-sm">
-                    <p className="text-xs text-muted">
-                      {e.user_name ?? "Someone"} · {formatDateTime(e.created_at)}
+                    <p className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                      <Badge tone={e.kind === "note" ? "blue" : e.kind === "status" ? "violet" : "grey"}>{EVENT_KIND_LABELS[e.kind] ?? e.kind}</Badge>
+                      {e.user_name ?? "System"} · {formatDateTime(e.created_at)}
                     </p>
-                    {e.kind === "note" ? (
-                      <p className="mt-1 whitespace-pre-line">{e.body}</p>
-                    ) : (
-                      <p className="mt-1">
-                        Status changed from <strong>{APPLICATION_STATUS_LABELS[e.from_status as keyof typeof APPLICATION_STATUS_LABELS] ?? e.from_status}</strong> to{" "}
-                        <strong>{APPLICATION_STATUS_LABELS[e.to_status as keyof typeof APPLICATION_STATUS_LABELS] ?? e.to_status}</strong>
-                      </p>
-                    )}
+                    <EventText e={e} />
                   </li>
                 ))}
               </ol>
@@ -156,6 +157,32 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
               </div>
             </Panel>
           )}
+
+          <Panel title="Recruiter">
+            {editable ? (
+              <form action={assignApplicationAction} className="flex flex-wrap items-end gap-2">
+                <input type="hidden" name="id" value={a.id} />
+                <div className="min-w-0 flex-1">
+                  <label htmlFor="assignee" className="a-label">
+                    Assigned to
+                  </label>
+                  <select id="assignee" name="assignee" defaultValue={a.assigned_to ?? ""} className="a-field">
+                    <option value="">Unassigned</option>
+                    {recruiters.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <SubmitButton className="a-btn" pendingLabel="Saving…">
+                  Save
+                </SubmitButton>
+              </form>
+            ) : (
+              <p className="text-sm">{a.assigned_name ?? <span className="text-muted">Unassigned</span>}</p>
+            )}
+          </Panel>
 
           <Panel title={`Other applications from ${a.full_name.split(" ")[0]}`} bodyClass="">
             {a.others.length ? (

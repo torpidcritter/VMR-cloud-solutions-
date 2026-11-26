@@ -20,9 +20,13 @@ export type OpeningFormValues = {
   skills: string;
   status: string;
   closing_date: string;
+  vacancies: string;
+  salary_visible: "show" | "hide";
+  min_experience_years: string;
+  recruiters: string[];
 };
 
-export function OpeningForm({ values }: { values: OpeningFormValues }) {
+export function OpeningForm({ values, recruiterChoices = [] }: { values: OpeningFormValues; recruiterChoices?: { id: string; name: string }[] }) {
   return (
     <ActionForm action={saveOpeningAction} className="grid gap-5">
       {(state) => {
@@ -32,7 +36,7 @@ export function OpeningForm({ values }: { values: OpeningFormValues }) {
             <label htmlFor={name} className="a-label">
               {label}
             </label>
-            <input id={name} name={name} defaultValue={values[name]} aria-invalid={!!e[name]} className="a-field" {...props} />
+            <input id={name} name={name} defaultValue={values[name] as string} aria-invalid={!!e[name]} className="a-field" {...props} />
             <FieldError error={e[name]} />
             {hint && !e[name] && <p className="mt-1 text-xs text-muted">{hint}</p>}
           </div>
@@ -42,7 +46,7 @@ export function OpeningForm({ values }: { values: OpeningFormValues }) {
             <label htmlFor={name} className="a-label">
               {label}
             </label>
-            <select id={name} name={name} defaultValue={values[name]} aria-invalid={!!e[name]} className="a-field">
+            <select id={name} name={name} defaultValue={values[name] as string} aria-invalid={!!e[name]} className="a-field">
               <option value="">Choose…</option>
               {options.map((o) => (
                 <option key={o} value={o}>
@@ -62,10 +66,41 @@ export function OpeningForm({ values }: { values: OpeningFormValues }) {
               {input("sap_module", "SAP module or skill area", { maxLength: 80, placeholder: "e.g. FICO, ABAP, Java" })}
               {select("employment_type", "Employment type", EMPLOYMENT_TYPES)}
               {select("experience", "Experience", OPENING_EXPERIENCE)}
-              {input("salary_range", "Salary or rate (optional)", { maxLength: 80, placeholder: "e.g. ₹18–24 LPA" }, "Leave blank to hide it on the website.")}
+              {input("min_experience_years", "Minimum experience in years (optional)", { inputMode: "decimal", maxLength: 5 }, "Used to match candidates from the Talent Bank.")}
+              {input("vacancies", "Number of positions", { inputMode: "numeric", maxLength: 3 })}
               {input("location", "Location", { maxLength: 160, placeholder: "e.g. Bengaluru" })}
               {select("work_mode", "Work mode", WORK_MODES)}
+              {input("salary_range", "Salary or rate (optional)", { maxLength: 80, placeholder: "e.g. ₹18–24 LPA" })}
+              <div>
+                <label htmlFor="salary_visible" className="a-label">
+                  Salary on the website
+                </label>
+                <select id="salary_visible" name="salary_visible" defaultValue={values.salary_visible} className="a-field">
+                  <option value="show">Show it</option>
+                  <option value="hide">Keep it internal</option>
+                </select>
+                <p className="mt-1 text-xs text-muted">A blank salary is never shown.</p>
+              </div>
             </section>
+
+            {recruiterChoices.length > 0 && (
+              <fieldset className="card grid gap-3 p-5">
+                <legend className="sr-only">Recruiters</legend>
+                <h2 className="text-sm font-semibold" aria-hidden>
+                  Recruiters
+                </h2>
+                <p className="-mt-1 text-xs text-muted">When exactly one recruiter is chosen, new applications for this job are assigned to them automatically.</p>
+                <div className="flex flex-wrap gap-2">
+                  {recruiterChoices.map((r) => (
+                    <label key={r.id} className="a-chip cursor-pointer has-[:checked]:!border-btn has-[:checked]:!bg-btn has-[:checked]:!text-white">
+                      <input type="checkbox" name="recruiters" value={r.id} defaultChecked={values.recruiters.includes(r.id)} className="sr-only" />
+                      {r.name}
+                    </label>
+                  ))}
+                </div>
+                <input type="hidden" name="recruitersSent" value="1" />
+              </fieldset>
+            )}
 
             <section className="card grid gap-4 p-5 sm:grid-cols-2">
               <h2 className="text-sm font-semibold sm:col-span-2">Client</h2>

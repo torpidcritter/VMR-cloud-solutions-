@@ -57,12 +57,15 @@ export function Badge({ children, tone = "grey" }: { children: ReactNode; tone?:
 
 const APP_TONES: Record<string, Tone> = {
   new: "blue",
-  under_review: "amber",
+  screening: "amber",
   shortlisted: "violet",
-  interview: "cyan",
-  offered: "cyan",
+  interview_scheduled: "cyan",
+  interview_completed: "cyan",
+  selected: "green",
+  offer_released: "green",
   hired: "green",
   rejected: "red",
+  on_hold: "grey",
 };
 export function ApplicationStatusBadge({ status }: { status: string }) {
   return <Badge tone={APP_TONES[status] ?? "grey"}>{APPLICATION_STATUS_LABELS[status as keyof typeof APPLICATION_STATUS_LABELS] ?? status}</Badge>;

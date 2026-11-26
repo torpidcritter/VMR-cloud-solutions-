@@ -61,6 +61,7 @@ export default async function OpeningsPage({ searchParams }: { searchParams: Pro
                 {showClient && <th>Client</th>}
                 <th>Location</th>
                 <th>Status</th>
+                <th>Recruiters</th>
                 <th className="text-right">Applications</th>
                 <th>Closes</th>
                 <th>Updated</th>
@@ -92,6 +93,12 @@ export default async function OpeningsPage({ searchParams }: { searchParams: Pro
                     <td>
                       <OpeningStatusBadge status={o.status} />
                       {expired && <div className="mt-1 text-xs text-accent-600">Past closing date, hidden</div>}
+                    </td>
+                    <td>
+                      {o.recruiter_names.length ? o.recruiter_names.join(", ") : <span className="text-muted">None</span>}
+                      <div className="text-xs text-muted">
+                        {o.vacancies} position{o.vacancies === 1 ? "" : "s"}
+                      </div>
                     </td>
                     <td className="text-right tabular-nums">
                       <Link href={`/admin/applications?opening=${o.id}`} className="hover:text-brand-600">

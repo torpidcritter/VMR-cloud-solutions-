@@ -20,19 +20,23 @@ export type Opening = {
   skills: string[];
   status: OpeningStatus;
   closing_date: string | null;
+  vacancies: number;
+  salary_visible: boolean;
+  min_experience_years: number | null;
   published_at: string | null;
   created_at: string;
   updated_at: string;
 };
 
-export type OpeningWithCounts = Opening & { applications: number; new_applications: number };
+export type OpeningWithCounts = Opening & { applications: number; new_applications: number; recruiter_names: string[] };
 
 export type OpeningInput = Omit<Opening, "id" | "slug" | "published_at" | "created_at" | "updated_at">;
 
 const COLS = `id, slug, title, sap_module, client_name, public_client_label, location, work_mode, experience, employment_type, salary_range,
-  summary, description, skills, status, to_char(closing_date, 'YYYY-MM-DD') AS closing_date, published_at, created_at, updated_at`;
+  summary, description, skills, status, to_char(closing_date, 'YYYY-MM-DD') AS closing_date, vacancies, salary_visible,
+  min_experience_years::float8 AS min_experience_years, published_at, created_at, updated_at`;
 
-const str = (v: unknown, max = 200) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+const str = (v: unknown, max = 200) => (typeof v === "string" ? v.trim().slice(0, max) : typeof v === "number" ? String(v) : "");
 
 /** Validates admin form input. Returns the clean value or field errors. */
 export function parseOpening(form: Record<string, unknown>): { data: OpeningInput; errors: Record<string, string> } {
@@ -56,6 +60,10 @@ export function parseOpening(form: Record<string, unknown>): { data: OpeningInpu
       .slice(0, 30),
     status: (OPENING_STATUSES as readonly string[]).includes(str(form.status)) ? (str(form.status) as OpeningStatus) : "draft",
     closing_date: /^\d{4}-\d{2}-\d{2}$/.test(str(form.closing_date)) ? str(form.closing_date) : null,
+    vacancies: str(form.vacancies) === "" ? 1 : Number(str(form.vacancies)),
+    // Shown unless explicitly hidden ("hide" from the form, false from code).
+    salary_visible: !(form.salary_visible === "hide" || form.salary_visible === false),
+    min_experience_years: str(form.min_experience_years) === "" ? null : Number(str(form.min_experience_years)),
   };
   if (data.title.length < 3) errors.title = "Enter the job title.";
   if (!data.location) errors.location = "Enter the location.";
@@ -63,6 +71,9 @@ export function parseOpening(form: Record<string, unknown>): { data: OpeningInpu
   if (!(EMPLOYMENT_TYPES as readonly string[]).includes(data.employment_type)) errors.employment_type = "Choose an employment type.";
   if (!data.experience) errors.experience = "Choose the experience level.";
   if (!data.public_client_label) errors.public_client_label = "Enter how the employer is described publicly.";
+  if (!Number.isInteger(data.vacancies) || data.vacancies < 1 || data.vacancies > 999) errors.vacancies = "Enter a number of positions from 1 to 999.";
+  if (data.min_experience_years !== null && (!Number.isFinite(data.min_experience_years) || data.min_experience_years < 0 || data.min_experience_years > 60))
+    errors.min_experience_years = "Enter years between 0 and 60.";
   if (data.status === "published" && data.description.length < 40) errors.description = "Add a description (at least a few lines) before publishing.";
   return { data, errors };
 }
@@ -94,7 +105,9 @@ export async function listOpenings({ status, q }: { status?: string; q?: string 
   return conn.query<OpeningWithCounts>(
     `SELECT o.id, o.slug, o.title, o.sap_module, o.client_name, o.public_client_label, o.location, o.work_mode, o.experience,
             o.employment_type, o.salary_range, o.summary, o.description, o.skills, o.status,
-            to_char(o.closing_date, 'YYYY-MM-DD') AS closing_date, o.published_at, o.created_at, o.updated_at,
+            to_char(o.closing_date, 'YYYY-MM-DD') AS closing_date, o.vacancies, o.salary_visible, o.min_experience_years::float8 AS min_experience_years,
+            o.published_at, o.created_at, o.updated_at,
+            ARRAY(SELECT u.name FROM opening_recruiters r JOIN admin_users u ON u.id = r.user_id WHERE r.opening_id = o.id ORDER BY u.name) AS recruiter_names,
             (SELECT count(*)::int FROM applications a WHERE a.opening_id = o.id) AS applications,
             (SELECT count(*)::int FROM applications a WHERE a.opening_id = o.id AND a.status = 'new') AS new_applications
        FROM job_openings o ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
@@ -114,8 +127,8 @@ export async function createOpening(input: OpeningInput, userId: string) {
   const conn = await db();
   const [row] = await conn.query<{ id: string }>(
     `INSERT INTO job_openings (slug, title, sap_module, client_name, public_client_label, location, work_mode, experience, employment_type,
-       salary_range, summary, description, skills, status, closing_date, published_at, created_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15, CASE WHEN $14 = 'published' THEN now() END, $16) RETURNING id`,
+       salary_range, summary, description, skills, status, closing_date, published_at, created_by, vacancies, salary_visible, min_experience_years)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15, CASE WHEN $14 = 'published' THEN now() END, $16, $17, $18, $19) RETURNING id`,
     [
       slugify(input.title),
       input.title,
@@ -133,6 +146,9 @@ export async function createOpening(input: OpeningInput, userId: string) {
       input.status,
       input.closing_date,
       userId,
+      input.vacancies,
+      input.salary_visible,
+      input.min_experience_years,
     ],
   );
   return row.id;
@@ -143,6 +159,7 @@ export async function updateOpening(id: string, input: OpeningInput) {
   await conn.query(
     `UPDATE job_openings SET title=$2, sap_module=$3, client_name=$4, public_client_label=$5, location=$6, work_mode=$7, experience=$8,
        employment_type=$9, salary_range=$10, summary=$11, description=$12, skills=$13, status=$14, closing_date=$15,
+       vacancies=$16, salary_visible=$17, min_experience_years=$18,
        published_at = CASE WHEN $14 = 'published' AND published_at IS NULL THEN now() ELSE published_at END, updated_at = now()
      WHERE id = $1`,
     [
@@ -161,8 +178,34 @@ export async function updateOpening(id: string, input: OpeningInput) {
       input.skills,
       input.status,
       input.closing_date,
+      input.vacancies,
+      input.salary_visible,
+      input.min_experience_years,
     ],
   );
+}
+
+/** Recruiters responsible for an opening. */
+export async function getOpeningRecruiters(id: string) {
+  const conn = await db();
+  return (await conn.query<{ user_id: string }>(`SELECT user_id FROM opening_recruiters WHERE opening_id = $1`, [id])).map((r) => r.user_id);
+}
+
+export async function setOpeningRecruiters(id: string, userIds: string[]) {
+  const ids = [...new Set(userIds.filter((u) => /^[0-9a-f-]{36}$/i.test(u)))].slice(0, 20);
+  const conn = await db();
+  await conn.tx([
+    { text: `DELETE FROM opening_recruiters WHERE opening_id = $1`, params: [id] },
+    ...(ids.length
+      ? [
+          {
+            text: `INSERT INTO opening_recruiters (opening_id, user_id)
+                   SELECT $1, u.id FROM admin_users u WHERE u.id = ANY($2::uuid[]) AND u.active AND u.role IN ('super_admin','recruiter')`,
+            params: [id, ids],
+          },
+        ]
+      : []),
+  ]);
 }
 
 export async function setOpeningStatus(id: string, status: OpeningStatus) {
@@ -183,8 +226,13 @@ export async function deleteOpening(id: string) {
 /* ------------------------------------------------------------------ */
 
 export type PublicOpening = Omit<Opening, "client_name">;
+if (!COLS.includes("salary_range,")) throw new Error("openings: salary column list changed; update PUBLIC_COLS");
 
-const PUBLIC_COLS = COLS.replace("client_name, public_client_label", "public_client_label");
+// No client name, and the salary only when it is set to be shown.
+const PUBLIC_COLS = COLS.replace("client_name, public_client_label", "public_client_label").replace(
+  "salary_range,",
+  "CASE WHEN salary_visible THEN salary_range ELSE '' END AS salary_range,",
+);
 const LIVE = `status = 'published' AND (closing_date IS NULL OR closing_date >= (now() AT TIME ZONE 'Asia/Kolkata')::date)`;
 
 /** Published, unexpired openings. Never includes the confidential client name. */

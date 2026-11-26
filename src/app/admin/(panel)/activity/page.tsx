@@ -7,12 +7,13 @@ import { Badge, PageHeader, Pagination, formatDateTime, type Tone } from "@/comp
 export const metadata: Metadata = { title: "Activity" };
 
 const PAGE_SIZE = 50;
-const TONE: Record<string, Tone> = { create: "green", update: "blue", status: "violet", delete: "red", export: "amber", download: "cyan", note: "grey", signin: "grey" };
+const TONE: Record<string, Tone> = { create: "green", update: "blue", status: "violet", delete: "red", export: "amber", download: "cyan", note: "grey", signin: "grey", assign: "cyan", merge: "amber" };
 const LINK: Record<string, (id: string) => string> = {
   application: (id) => `/admin/applications/${id}`,
   opening: (id) => `/admin/openings/${id}`,
   enquiry: (id) => `/admin/enquiries/${id}`,
   user: (id) => `/admin/users/${id}`,
+  candidate: (id) => `/admin/candidates/${id}`,
 };
 
 export default async function ActivityPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {

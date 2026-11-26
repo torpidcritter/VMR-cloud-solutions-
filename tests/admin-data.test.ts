@@ -50,8 +50,8 @@ beforeAll(async () => {
 describe("schema", () => {
   it("applies migrations once and records the version", async () => {
     const conn = await db();
-    const rows = await conn.query<{ version: number }>(`SELECT version FROM schema_migrations`);
-    expect(rows.map((r) => Number(r.version))).toEqual([1]);
+    const rows = await conn.query<{ version: number }>(`SELECT version FROM schema_migrations ORDER BY version`);
+    expect(rows.map((r) => Number(r.version))).toEqual([1, 2]);
   });
 });
 
@@ -178,5 +178,117 @@ describe("openings, applications and the public site", () => {
     expect(stats.enquiries.new).toBe(1);
     expect(stats.weekly).toHaveLength(12);
     expect(stats.weekly.at(-1)?.count).toBe(2);
+  });
+});
+
+describe("ATS: candidates, pipeline and job openings", () => {
+  const candidates = () => import("@/lib/data/candidates");
+  let adminId = "";
+  let recruiterId = "";
+  let openingId = "";
+
+  beforeAll(async () => {
+    const [admin] = await users.listAdmins();
+    adminId = admin.id;
+    await users.createAdmin({ email: "recruiter@example.test", name: "Test Recruiter", role: "recruiter", password: "long-enough-password-1", mustChange: false });
+    recruiterId = (await users.listAdmins()).find((u) => u.email === "recruiter@example.test")!.id;
+  });
+
+  it("assigns applications to the single recruiter on an opening and records assignments", async () => {
+    const { data } = openings.parseOpening({ ...opening, title: "SAP ABAP Developer", sap_module: "ABAP", salary_range: "₹20 LPA", salary_visible: "hide", vacancies: "3", min_experience_years: "4" });
+    expect(data).toMatchObject({ vacancies: 3, salary_visible: false, min_experience_years: 4 });
+    openingId = await openings.createOpening(data, adminId);
+    await openings.setOpeningRecruiters(openingId, [recruiterId, "not-a-uuid"]);
+    expect(await openings.getOpeningRecruiters(openingId)).toEqual([recruiterId]);
+
+    // Salary stays internal when hidden; the admin view still has it.
+    const pub = await openings.listPublicOpenings();
+    const abap = pub.find((o) => o.title === "SAP ABAP Developer");
+    expect(abap?.salary_range).toBe("");
+    expect(abap?.vacancies).toBe(3);
+    expect((await openings.getOpening(openingId))?.salary_range).toBe("₹20 LPA");
+
+    const a = await apps.recordApplication({
+      candidate: { email: "test.candidate@example.test", fullName: "Test Candidate", phone: "+91 90000 11111" },
+      openingId,
+      source: "job",
+      position: "SAP ABAP Developer",
+      experience: "5–8 years",
+    });
+    const detail = await apps.getApplication(a.id);
+    expect(detail?.assigned_to).toBe(recruiterId);
+
+    expect(await apps.assignApplication(a.id, null, adminId)).toBe(true);
+    expect(await apps.assignApplication(a.id, null, adminId)).toBe(false);
+    expect((await apps.listApplications({ assigned: "none", opening: openingId })).rows).toHaveLength(1);
+    const after = await apps.getApplication(a.id);
+    expect(after?.events.map((e) => e.kind)).toContain("assign");
+  });
+
+  it("moves cards through the pipeline once and reports conversion", async () => {
+    const [row] = (await apps.listApplications({ opening: openingId })).rows;
+    expect(await apps.setApplicationStatus(row.id, "screening", adminId)).toBe(true);
+    // Moving to the stage it is already in changes nothing and writes no history.
+    expect(await apps.setApplicationStatus(row.id, "screening", adminId)).toBe(false);
+    expect(await apps.setApplicationStatus(row.id, "hired", adminId)).toBe(true);
+    const conn = await db();
+    const [h] = await conn.query<{ hired_at: string | null }>(`SELECT hired_at FROM applications WHERE id = $1`, [row.id]);
+    expect(h.hired_at).toBeTruthy();
+
+    const board = await apps.listPipeline({ opening: openingId });
+    expect(board.cards.map((c) => c.status)).toEqual(["hired"]);
+    const conv = await apps.pipelineConversion({ opening: openingId });
+    expect(conv.total).toBe(1);
+    // A hire counts as having passed through every earlier stage.
+    expect(conv.stages.find((s) => s.stage === "screening")?.count).toBe(1);
+    expect(conv.stages.find((s) => s.stage === "hired")?.ofTotal).toBe(1);
+  });
+
+  it("edits a profile with a field-level history and finds duplicates", async () => {
+    const c = await candidates();
+    const [row] = (await apps.listApplications({ opening: openingId })).rows;
+    const bad = c.parseCandidate({ full_name: "X", experience_years: "99", linkedin_url: "http://evil.test" });
+    expect(Object.keys(bad.errors).sort()).toEqual(["experience_years", "full_name", "linkedin_url"]);
+    const { data, errors } = c.parseCandidate({
+      full_name: "Test Candidate",
+      phone: "+91 90000 11111",
+      experience_years: "6.5",
+      skills: "ABAP, RAP, abap, CDS Views",
+      tags: "Bench",
+      availability: "Within 30 days",
+    });
+    expect(errors).toEqual({});
+    expect(data.skills).toEqual(["ABAP", "RAP", "CDS Views"]);
+    const res = await c.updateCandidate(row.candidate_id, data, adminId);
+    expect(res?.changed).toEqual(expect.arrayContaining(["Experience (years)", "Skills", "Tags", "Availability"]));
+
+    await c.setCandidateFields(row.candidate_id, { priority: "urgent", owner_id: recruiterId, follow_up_on: "2020-01-01" }, adminId);
+    const prof = await c.getCandidate(row.candidate_id);
+    expect(prof).toMatchObject({ priority: "urgent", owner_name: "Test Recruiter", experience_years: 6.5 });
+    expect(prof?.timeline.filter((e) => e.kind === "edit")).toHaveLength(2);
+
+    expect((await c.listCandidates({ skill: "abap, rap" })).total).toBe(1);
+    expect((await c.listCandidates({ skill: "abap, fico" })).total).toBe(0);
+    expect((await c.listCandidates({ followUp: "due" })).total).toBe(1);
+    expect((await c.listCandidates({ minYears: "7" })).total).toBe(0);
+
+    // A second profile with the same phone number shows up as a duplicate.
+    await apps.recordApplication({ candidate: { email: "test.candidate.alt@example.test", fullName: "T. Candidate", phone: "090000 11111" }, source: "careers", position: "ABAP", experience: "" });
+    expect(prof && (await c.findDuplicates(prof))).toEqual([expect.objectContaining({ email: "test.candidate.alt@example.test", reason: "Same phone number" })]);
+  });
+
+  it("merges a duplicate into the kept profile in one step", async () => {
+    const c = await candidates();
+    const conn = await db();
+    const [keep] = await conn.query<{ id: string }>(`SELECT id FROM candidates WHERE email = 'test.candidate@example.test'`);
+    const [drop] = await conn.query<{ id: string }>(`SELECT id FROM candidates WHERE email = 'test.candidate.alt@example.test'`);
+    await c.addCandidateNote(drop.id, "Called, interested", adminId);
+    expect(await c.mergeCandidates(keep.id, drop.id, adminId)).toBe(true);
+    expect(await c.getCandidate(drop.id)).toBeNull();
+    const merged = await c.getCandidate(keep.id);
+    expect(merged?.applications).toHaveLength(2);
+    expect(merged?.timeline.map((e) => e.kind)).toEqual(expect.arrayContaining(["merge", "note"]));
+    expect(merged?.duplicates).toHaveLength(0);
+    expect(await c.mergeCandidates(keep.id, keep.id, adminId)).toBe(false);
   });
 });

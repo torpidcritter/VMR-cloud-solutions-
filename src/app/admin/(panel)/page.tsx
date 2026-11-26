@@ -35,12 +35,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Total applications" value={s.applications.total} icon={FileText} href="/admin/applications" hint={`${s.applications.last7} in the last 7 days`} />
         <StatCard label="New, not yet reviewed" value={s.applications.new} icon={Sparkles} tone="amber" href="/admin/applications?status=new" />
-        <StatCard label="Shortlisted to offered" value={s.applications.shortlisted} icon={CheckCircle2} tone="violet" href="/admin/applications?status=shortlisted" />
+        <StatCard label="Shortlisted to offer" value={s.applications.shortlisted} icon={CheckCircle2} tone="violet" href="/admin/applications?status=shortlisted" />
         <StatCard label="Hired" value={s.applications.hired} icon={CheckCircle2} tone="green" href="/admin/applications?status=hired" />
         <StatCard label="Live job openings" value={s.openings.published} icon={BriefcaseBusiness} tone="cyan" href="/admin/openings?status=published" hint={`${s.openings.draft} in draft`} />
         <StatCard label="Candidates in talent bank" value={s.talent.candidates} icon={Users} tone="blue" href="/admin/talent" hint={`${s.talent.resumes} resumes on file`} />
         <StatCard label="New enquiries" value={s.enquiries.new} icon={MessageSquare} tone="red" href="/admin/enquiries?status=new" hint={`${s.enquiries.total} in total`} />
-        <StatCard label="Under review" value={s.applications.under_review} icon={Inbox} tone="grey" href="/admin/applications?status=under_review" />
+        <StatCard label="In screening" value={s.applications.screening} icon={Inbox} tone="grey" href="/admin/applications?status=screening" />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.4fr_1fr]">

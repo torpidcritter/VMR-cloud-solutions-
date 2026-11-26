@@ -26,9 +26,9 @@ export async function GET(req: Request) {
   }
   const showClient = can(me.role, "openings.viewClient");
   const sp = Object.fromEntries(new URL(req.url).searchParams);
-  const { filters } = applicationFilters(sp, showClient);
+  const { filters } = applicationFilters(sp, showClient, me.id);
   const rows = await exportApplications(filters);
-  const head = ["Number", "Received (IST)", "Name", "Email", "Phone", "Location", "Position", "Job opening", ...(showClient ? ["Client"] : []), "Source", "Experience", "Specialisation", "Status", "Resume", "Message"];
+  const head = ["Number", "Received (IST)", "Name", "Email", "Phone", "Location", "Position", "Job opening", ...(showClient ? ["Client"] : []), "Source", "Experience", "Specialisation", "Status", "Recruiter", "Resume", "Message"];
   const lines = rows.map((r) =>
     [
       r.number,
@@ -44,6 +44,7 @@ export async function GET(req: Request) {
       r.experience,
       r.specialisation,
       APPLICATION_STATUS_LABELS[r.status] ?? r.status,
+      r.assigned_name ?? "",
       r.resume_path ? "Yes" : "No",
       r.message,
     ]
