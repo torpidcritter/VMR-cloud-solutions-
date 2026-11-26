@@ -32,7 +32,9 @@ const DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.doc
 
   // ---- Public careers form: macro file refused, then a submission the network sends twice
   const run = Math.floor(Math.random() * 200) + 20;
-  const email = `retry.${run}@example.test`;
+  // Unique per run, so a database that already holds earlier runs can't match an old record.
+  const uniq = `${run}-${Date.now().toString(36)}`;
+  const email = `retry.${uniq}@example.test`;
   const pub = await (await b.newContext({ viewport: { width: 1280, height: 900 }, extraHTTPHeaders: { 'x-forwarded-for': `198.51.${run}.81` } })).newPage();
   const fill = async () => {
     await pub.goto(B + '/careers'); await pub.waitForTimeout(3000); // the form counts time on page

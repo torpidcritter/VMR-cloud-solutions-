@@ -118,6 +118,12 @@ From a `pg_dump` file instead: create an empty Neon branch or database, then
 
 Practise a restore to a new branch once before going live, and note how long it took.
 
+Drill record, 26 Nov 2026 (local PostgreSQL 16, not yet Neon): all 10 migrations applied to an empty
+database; 412 rows in 31 tables dumped and restored with the commands above in 0.1 s and 0.3 s; every
+table matched by row count and checksum; the audit log was still append-only after the restore. The
+previous release (H2) also passed its browser tests against the schema-10 database, which confirms
+that rolling back needs no database step.
+
 ## Automated checks
 
 - `npm test`: unit and integration tests against an embedded Postgres (PGlite).

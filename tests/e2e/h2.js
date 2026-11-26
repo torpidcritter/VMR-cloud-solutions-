@@ -24,11 +24,13 @@ async function login(b, email, password, xff) {
   const errs = [];
   const watch = (p) => { p.on('pageerror', (e) => errs.push(e.message)); p.on('console', (m) => m.type() === 'error' && errs.push(`${p.url()}: ${m.text()}`)); };
   const run = Math.floor(Math.random() * 200) + 20;
+  // Unique per run, so a database that already holds earlier runs can't match an old record.
+  const uniq = `${run}-${Date.now().toString(36)}`;
 
   // ---- Consent on the careers form, and the contact page map under the CSP
   const pub = await (await b.newContext({ viewport: { width: 1280, height: 900 }, extraHTTPHeaders: { 'x-forwarded-for': `198.51.${run}.91` } })).newPage(); watch(pub);
   await pub.goto(B + '/careers'); await pub.waitForTimeout(3000);
-  await pub.fill('#fullName', 'Consent Tester'); await pub.fill('#c-email', `consent.${run}@example.test`); await pub.fill('#c-phone', '+91 90000 66666');
+  await pub.fill('#fullName', 'Consent Tester'); await pub.fill('#c-email', `consent.${uniq}@example.test`); await pub.fill('#c-phone', '+91 90000 66666');
   await pub.selectOption('#position', 'Other'); await pub.selectOption('#experience', '3–5 years'); await pub.setInputFiles('#resume', FIX + '/test-cv.pdf');
   await pub.click('form button[type=submit]'); await pub.waitForTimeout(800);
   ok('consent required', (await pub.textContent('main')).includes('agree to us processing'));
@@ -40,7 +42,7 @@ async function login(b, email, password, xff) {
 
   // ---- Owner: consent recorded, Export data, then two-step sign-in set-up
   const { ctx, p } = await login(b, 'owner@example.test', 'test-pass-1234', `198.51.${run}.92`); watch(p);
-  await p.goto(B + '/admin/applications?q=' + encodeURIComponent(`consent.${run}@example.test`));
+  await p.goto(B + '/admin/applications?q=' + encodeURIComponent(`consent.${uniq}@example.test`));
   await p.locator('tbody tr a').first().click(); await p.waitForURL(/applications\/[0-9a-f-]{36}/);
   const appText = await p.textContent('main');
   ok('consent shown on application', appText.includes('Consent (policy version)'));
