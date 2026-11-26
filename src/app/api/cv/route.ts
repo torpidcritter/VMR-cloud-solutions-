@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { CONSENT_VERSION, CV_MAX_BYTES, CV_MIME, fileExtension, validateCv } from "@/lib/cv";
-import { isStorageConfigured, storeCv } from "@/lib/cv-storage";
+import { deleteStoredFile, deleteSubmissionRecord, isStorageConfigured, storeCv } from "@/lib/cv-storage";
 import { inspectCvFile } from "@/lib/file-check";
 import { clientIp, looksLikeBot, rateLimited, sameOrigin } from "@/lib/guard";
 import { isMailConfigured, sendMail, tableHtml } from "@/lib/mailer";
@@ -104,8 +104,18 @@ export async function POST(req: Request) {
       details: { employmentType: data.employmentType, preferredLocation: data.preferredLocation, consentVersion: CONSENT_VERSION, consentAt: submittedAt, reference: stored.id },
       resume: { path: stored.cvPath, name: file!.name.slice(0, 180), size: buffer.length, type: CV_MIME[ext] },
       resumeText: extractResumeText(buffer, ext),
+      submissionKey: typeof fields.submissionId === "string" ? fields.submissionId : null,
     }),
   );
+  // The same submission arrived twice (a retry or double click). The first one
+  // is saved and was already emailed, so drop this copy and answer with the
+  // first reference.
+  if (saved?.duplicate) {
+    await deleteStoredFile(stored.cvPath).catch(() => undefined);
+    await deleteSubmissionRecord(stored.cvPath).catch(() => undefined);
+    const first = saved.reference && /^[0-9a-f-]{36}$/i.test(saved.reference) ? saved.reference : stored.id;
+    return json({ ok: true, reference: first.slice(0, 8).toUpperCase() });
+  }
   const settings = await getSettings();
   if (!isMailConfigured() || !settings.notifyApplications) {
     if (!saved) console.error(`[cv] stored ${stored.id} but neither the database nor email recorded it`);

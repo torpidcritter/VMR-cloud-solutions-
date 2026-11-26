@@ -1,8 +1,9 @@
 import "server-only";
+import { createHash } from "node:crypto";
 import { notify } from "./notifications";
 import { db } from "@/lib/db/client";
 import { normaliseEmail } from "@/lib/auth/session";
-import { ACTIVE_SHORTLIST, APPLICATION_SOURCES, APPLICATION_STATUSES, FUNNEL_STAGES, type ApplicationSource, type ApplicationStatus } from "./constants";
+import { ACTIVE_SHORTLIST, APPLICATION_SOURCES, APPLICATION_STATUSES, FUNNEL_STAGES, canMoveApplication, type ApplicationSource, type ApplicationStatus } from "./constants";
 import { isIsoDate } from "@/lib/dates";
 
 /* ------------------------------------------------------------------ */
@@ -22,6 +23,20 @@ export type CandidateInput = {
 
 export type ResumeRef = { path: string; name: string; size: number; type: string };
 
+export class OpeningClosedError extends Error {}
+
+/**
+ * Saves a submission from the website in one statement: the candidate (one
+ * per email) and the application, so neither can be saved without the other.
+ *
+ * - A public form never changes what is already on a profile. It only fills
+ *   fields that are empty; a different name or phone is kept on the
+ *   application ("as submitted") for the recruiter to check.
+ * - `submissionKey` makes a retry or double submit return the first
+ *   application instead of creating a second one.
+ * - An application to a job opening is only saved while the opening is still
+ *   published and not past its closing date, checked in the same statement.
+ */
 export async function recordApplication(input: {
   candidate: CandidateInput;
   openingId?: string | null;
@@ -33,25 +48,56 @@ export async function recordApplication(input: {
   resume?: ResumeRef | null;
   /** Text read from the resume, for search and matching. */
   resumeText?: { status: "ok" | "empty" | "failed"; text: string } | null;
+  /** One per form submission (the form sends it); a repeat returns the first save. */
+  submissionKey?: string | null;
 }) {
   const conn = await db();
   const c = input.candidate;
-  // One candidate per email; newer non-empty details win.
-  const [cand] = await conn.query<{ id: string }>(
-    `INSERT INTO candidates (email, full_name, phone, location, preferred_location, specialisation, experience, employment_type)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-     ON CONFLICT (email) DO UPDATE SET
-       full_name = EXCLUDED.full_name,
-       phone = COALESCE(NULLIF(EXCLUDED.phone, ''), candidates.phone),
-       location = COALESCE(NULLIF(EXCLUDED.location, ''), candidates.location),
-       preferred_location = COALESCE(NULLIF(EXCLUDED.preferred_location, ''), candidates.preferred_location),
-       specialisation = COALESCE(NULLIF(EXCLUDED.specialisation, ''), candidates.specialisation),
-       experience = COALESCE(NULLIF(EXCLUDED.experience, ''), candidates.experience),
-       employment_type = COALESCE(NULLIF(EXCLUDED.employment_type, ''), candidates.employment_type),
-       updated_at = now()
-     RETURNING id`,
+  const email = normaliseEmail(c.email);
+  const opening = input.openingId ?? null;
+  const key =
+    input.submissionKey && /^[0-9a-f-]{36}$/i.test(input.submissionKey)
+      ? `form:${input.submissionKey.toLowerCase()}`
+      : // Without a key from the form, the same person, role and opening within the same 10 minutes count as one.
+        `auto:${createHash("sha256").update(`${email}|${opening ?? ""}|${input.position.trim().toLowerCase()}|${Math.floor(Date.now() / 600_000)}`).digest("hex")}`;
+  const [row] = await conn.query<{ id: string | null; number: string | null; assigned_to: string | null; candidate_id: string; applications: number }>(
+    `WITH cand AS (
+       INSERT INTO candidates (email, full_name, phone, location, preferred_location, specialisation, experience, employment_type)
+       SELECT $1,$2,$3,$4,$5,$6,$7,$8
+        -- A closed opening takes nothing, not even a new profile.
+        WHERE $9::uuid IS NULL
+           OR EXISTS (SELECT 1 FROM job_openings o WHERE o.id = $9::uuid AND o.status = 'published'
+                       AND (o.closing_date IS NULL OR o.closing_date >= (now() AT TIME ZONE 'Asia/Kolkata')::date))
+       ON CONFLICT (email) DO UPDATE SET
+         full_name = COALESCE(NULLIF(candidates.full_name, ''), EXCLUDED.full_name),
+         phone = COALESCE(NULLIF(candidates.phone, ''), EXCLUDED.phone),
+         location = COALESCE(NULLIF(candidates.location, ''), EXCLUDED.location),
+         preferred_location = COALESCE(NULLIF(candidates.preferred_location, ''), EXCLUDED.preferred_location),
+         specialisation = COALESCE(NULLIF(candidates.specialisation, ''), EXCLUDED.specialisation),
+         experience = COALESCE(NULLIF(candidates.experience, ''), EXCLUDED.experience),
+         employment_type = COALESCE(NULLIF(candidates.employment_type, ''), EXCLUDED.employment_type),
+         updated_at = now()
+       RETURNING id, full_name, phone
+     ),
+     app AS (
+       INSERT INTO applications (candidate_id, opening_id, source, position, experience, message, details, resume_path, resume_name, resume_size, resume_type, resume_text, resume_text_status, assigned_to, submission_key)
+       SELECT cand.id, $9::uuid, $10, $11, $12, $13,
+              $14::jsonb || jsonb_strip_nulls(jsonb_build_object(
+                'submittedName', CASE WHEN lower(trim(cand.full_name)) <> lower(trim($2)) THEN $2 END,
+                'submittedPhone', CASE WHEN $3 <> '' AND regexp_replace(cand.phone, '\\D', '', 'g') <> regexp_replace($3, '\\D', '', 'g') THEN $3 END)),
+              $15, $16, $17, $18, $19, $20,
+              -- A job with exactly one assigned recruiter hands the application straight to them.
+              (SELECT min(r.user_id::text)::uuid FROM opening_recruiters r WHERE r.opening_id = $9::uuid HAVING count(*) = 1),
+              $21
+         FROM cand
+       ON CONFLICT (submission_key) DO NOTHING
+       RETURNING id, number, assigned_to
+     )
+     SELECT app.id, app.number::text, app.assigned_to, cand.id AS candidate_id,
+            (SELECT count(*)::int FROM applications x WHERE x.candidate_id = cand.id) AS applications
+       FROM cand LEFT JOIN app ON true`,
     [
-      normaliseEmail(c.email),
+      email,
       c.fullName,
       c.phone ?? "",
       c.location ?? "",
@@ -59,17 +105,7 @@ export async function recordApplication(input: {
       c.specialisation ?? "",
       c.experience ?? "",
       c.employmentType ?? "",
-    ],
-  );
-  const [app] = await conn.query<{ id: string; number: string; assigned_to: string | null }>(
-    // A job with exactly one assigned recruiter hands the application straight to them.
-    `INSERT INTO applications (candidate_id, opening_id, source, position, experience, message, details, resume_path, resume_name, resume_size, resume_type, resume_text, resume_text_status, assigned_to)
-     VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11,$12,$13,
-       (SELECT min(r.user_id::text)::uuid FROM opening_recruiters r WHERE r.opening_id = $2::uuid HAVING count(*) = 1))
-     RETURNING id, number, assigned_to`,
-    [
-      cand.id,
-      input.openingId ?? null,
+      opening,
       input.source,
       input.position,
       input.experience,
@@ -81,11 +117,24 @@ export async function recordApplication(input: {
       input.resume?.type ?? null,
       input.resume && input.resumeText ? input.resumeText.text : "",
       input.resume && input.resumeText ? input.resumeText.status : null,
+      key,
     ],
   );
-  const [{ count }] = await conn.query<{ count: number }>(`SELECT count(*)::int AS count FROM applications WHERE candidate_id = $1`, [cand.id]);
-  if (app.assigned_to) await notify([app.assigned_to], null, "application", `New application from ${c.fullName} for ${input.position}`, `/admin/applications/${app.id}`);
-  return { id: app.id, number: Number(app.number), candidateId: cand.id, repeat: Number(count) > 1 };
+  if (!row?.id) {
+    // Nothing inserted: either this submission was already saved, or the opening closed.
+    const [first] = await conn.query<{ id: string; number: string; candidate_id: string; reference: string | null; applications: number }>(
+      `SELECT a.id, a.number::text, a.candidate_id, a.details->>'reference' AS reference,
+              (SELECT count(*)::int FROM applications x WHERE x.candidate_id = a.candidate_id) AS applications
+         FROM applications a WHERE a.submission_key = $1`,
+      [key],
+    );
+    if (first) return { id: first.id, number: Number(first.number), candidateId: first.candidate_id, repeat: Number(first.applications) > 1, duplicate: true, reference: first.reference };
+    throw new OpeningClosedError("This opening is no longer accepting applications.");
+  }
+  // The count was taken in the same snapshot, before this application.
+  const repeat = Number(row.applications) >= 1;
+  if (row.assigned_to) await notify([row.assigned_to], null, "application", `New application from ${c.fullName} for ${input.position}`, `/admin/applications/${row.id}`);
+  return { id: row.id, number: Number(row.number), candidateId: row.candidate_id, repeat, duplicate: false, reference: null as string | null };
 }
 
 /* ------------------------------------------------------------------ */
@@ -257,11 +306,16 @@ export async function getApplication(id: string) {
 }
 
 /** Moves an application to a stage and records it on the candidate's timeline. False when nothing changed. */
-export async function setApplicationStatus(id: string, status: ApplicationStatus, userId: string) {
+/**
+ * Moves one application to a stage. False when it is already there, the move
+ * isn't allowed from its current stage (see canMoveApplication), or someone
+ * else moved it first.
+ */
+export async function setApplicationStatus(id: string, status: ApplicationStatus, userId: string, { superAdmin = false }: { superAdmin?: boolean } = {}) {
   if (!isUuid(id) || !APPLICATION_STATUSES.includes(status)) return false;
   const conn = await db();
-  const [prev] = await conn.query<{ status: string; candidate_id: string }>(`SELECT status, candidate_id FROM applications WHERE id = $1`, [id]);
-  if (!prev || prev.status === status) return false;
+  const [prev] = await conn.query<{ status: ApplicationStatus; candidate_id: string }>(`SELECT status, candidate_id FROM applications WHERE id = $1`, [id]);
+  if (!prev || !canMoveApplication(prev.status, status, superAdmin)) return false;
   const [moved] = await conn.tx([
     {
       // Guarded on the old status so two people moving the same card can't both win.
@@ -307,7 +361,8 @@ export async function addApplicationNote(id: string, body: string, userId: strin
 
 export async function deleteApplication(id: string) {
   const conn = await db();
-  const [row] = await conn.query<{ resume_path: string | null; candidate_id: string }>(`DELETE FROM applications WHERE id = $1 RETURNING resume_path, candidate_id`, [id]);
+  // Hired applications are business records and are kept.
+  const [row] = await conn.query<{ resume_path: string | null; candidate_id: string }>(`DELETE FROM applications WHERE id = $1 AND status <> 'hired' RETURNING resume_path, candidate_id`, [id]);
   // A candidate whose only application was deleted goes too (data-deletion requests),
   // unless the team stored resumes on the profile itself.
   if (row)

@@ -7,6 +7,7 @@ import { claimDueReminders } from "@/lib/data/tasks";
 import { notify } from "@/lib/data/notifications";
 import { pruneAudit } from "@/lib/data/audit";
 import { getSettings } from "@/lib/data/settings";
+import { sweepOrphanFiles } from "@/lib/data/files";
 
 export const dynamic = "force-dynamic";
 
@@ -58,7 +59,13 @@ export async function GET(req: Request) {
   } catch (err) {
     console.error("[cron:reminders] audit clean-up failed", err instanceof Error ? err.message : err);
   }
-  if (!isMailConfigured()) return NextResponse.json({ sent: 0, notified, pruned, skipped: "Email is not configured" });
+  let files: Awaited<ReturnType<typeof sweepOrphanFiles>> | null = null;
+  try {
+    files = await sweepOrphanFiles();
+  } catch (err) {
+    console.error("[cron:reminders] file clean-up failed", err instanceof Error ? err.message : err);
+  }
+  if (!isMailConfigured()) return NextResponse.json({ sent: 0, notified, pruned, files, skipped: "Email is not configured" });
 
   const origin = process.env.ADMIN_ORIGIN?.replace(/\/$/, "") || new URL(req.url).origin;
   const due = await interviewsNeedingReminder(24);
@@ -95,5 +102,5 @@ export async function GET(req: Request) {
       failed.push(i.id);
     }
   }
-  return NextResponse.json({ due: due.length, sent, failed: failed.length, notified, pruned });
+  return NextResponse.json({ due: due.length, sent, failed: failed.length, notified, pruned, files });
 }

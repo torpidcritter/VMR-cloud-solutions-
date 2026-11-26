@@ -15,6 +15,7 @@ import {
   type CvErrors,
 } from "@/lib/cv";
 import { site } from "@/content/site";
+import { newSubmissionId } from "@/lib/forms";
 
 type Status = "idle" | "uploading" | "success" | "error";
 
@@ -51,6 +52,8 @@ export function CvUploadForm() {
   const [reference, setReference] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
   const startedAt = useRef(Date.now());
+  // The same id is sent on a retry, so the server saves this submission once.
+  const submissionId = useRef(newSubmissionId());
   const successRef = useRef<HTMLDivElement>(null);
 
   // Bring the confirmation into view (the form above it can be long on mobile).
@@ -105,6 +108,7 @@ export function CvUploadForm() {
     }
     fd.set("cv", file!);
     fd.set("startedAt", String(startedAt.current));
+    fd.set("submissionId", submissionId.current);
     setProgress(0);
     setStatus("uploading");
     try {
@@ -153,6 +157,7 @@ export function CvUploadForm() {
             className="btn btn-secondary"
             onClick={() => {
               startedAt.current = Date.now();
+              submissionId.current = newSubmissionId();
               setStatus("idle");
             }}
           >

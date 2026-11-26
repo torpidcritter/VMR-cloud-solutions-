@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { Paperclip, Search } from "lucide-react";
-import { APPLICATION_STATUSES, APPLICATION_STATUS_LABELS, type ApplicationStatus } from "@/lib/data/constants";
+import { APPLICATION_STATUSES, APPLICATION_STATUS_LABELS, MOVE_REFUSED, canMoveApplication, type ApplicationStatus } from "@/lib/data/constants";
 import type { PipelineCard } from "@/lib/data/applications";
 import { toast } from "@/components/admin/Toaster";
 import { moveApplicationAction } from "../../actions/pipeline";
@@ -32,7 +32,7 @@ const initials = (name: string) =>
     .toUpperCase();
 
 /** Kanban board: drag a card to another column, or use its Move menu (keyboard and touch friendly). */
-export function Board({ cards: initial, canMove }: { cards: PipelineCard[]; canMove: boolean }) {
+export function Board({ cards: initial, canMove, superAdmin = false }: { cards: PipelineCard[]; canMove: boolean; superAdmin?: boolean }) {
   const router = useRouter();
   const [cards, setCards] = useState(initial);
   const [dragging, setDragging] = useState<string | null>(null);
@@ -50,6 +50,11 @@ export function Board({ cards: initial, canMove }: { cards: PipelineCard[]; canM
     const card = cards.find((c) => c.id === id);
     if (!card || card.status === to) return;
     const from = card.status;
+    // The server decides; this only saves a round trip for a move it would refuse.
+    if (!canMoveApplication(from, to, superAdmin)) {
+      toast(MOVE_REFUSED, "error");
+      return;
+    }
     setCards((list) => list.map((c) => (c.id === id ? { ...c, status: to, stage_changed_at: new Date().toISOString() } : c)));
     const res = await moveApplicationAction(id, to);
     if (res.ok) {
@@ -152,7 +157,7 @@ export function Board({ cards: initial, canMove }: { cards: PipelineCard[]; canM
                         <label className="mt-2 block">
                           <span className="sr-only">Move {c.full_name} to stage</span>
                           <select value={c.status} onChange={(e) => void move(c.id, e.target.value as ApplicationStatus)} className="a-field !min-h-8 !py-1 text-xs">
-                            {APPLICATION_STATUSES.map((s) => (
+                            {APPLICATION_STATUSES.filter((s) => s === c.status || canMoveApplication(c.status, s, superAdmin)).map((s) => (
                               <option key={s} value={s}>
                                 {s === c.status ? `In ${APPLICATION_STATUS_LABELS[s]}` : `Move to ${APPLICATION_STATUS_LABELS[s]}`}
                               </option>

@@ -143,3 +143,81 @@ export async function deleteStoredFile(filePath: string) {
   const { del } = await import("@vercel/blob");
   await del(filePath);
 }
+
+const SUBMISSION_CV = /^(cv-submissions\/\d{4}\/\d{2}\/[0-9a-f-]{36})\/cv\.(pdf|docx?)$/;
+
+/**
+ * Upload CV keeps the form answers (name, email, phone, consent) in an
+ * application.json beside the CV. Deleting the application removes it too,
+ * so an erasure request leaves nothing behind. Other paths are ignored.
+ */
+export async function deleteSubmissionRecord(cvPath: string) {
+  const m = SUBMISSION_CV.exec(cvPath);
+  if (!m) return;
+  const driver = storageDriver();
+  if (!driver) return;
+  const recordPath = `${m[1]}/application.json`;
+  if (driver === "local") {
+    const { rm, rmdir } = await import("node:fs/promises");
+    await rm(path.join(localRoot(), recordPath), { force: true });
+    // The folder held only these two files; leave no empty folder behind.
+    await rmdir(path.join(localRoot(), m[1])).catch(() => {});
+    return;
+  }
+  const { del } = await import("@vercel/blob");
+  await del(recordPath);
+}
+
+/**
+ * Every stored file path under the folders this module writes, with when it
+ * was written. Used by the daily clean-up of files nothing points to.
+ */
+export async function listStoredFiles(): Promise<{ path: string; uploadedAt: Date }[]> {
+  const driver = storageDriver();
+  if (!driver) return [];
+  const out: { path: string; uploadedAt: Date }[] = [];
+  if (driver === "local") {
+    const { readdir, stat } = await import("node:fs/promises");
+    const root = localRoot();
+    for (const top of ["cv-submissions", "applications", "candidates"]) {
+      let entries: string[] = [];
+      try {
+        entries = (await readdir(path.join(root, top), { recursive: true })) as string[];
+      } catch {
+        continue;
+      }
+      for (const rel of entries) {
+        const p = `${top}/${rel.split(path.sep).join("/")}`;
+        if (!STORED_PATH.test(p) && !/\/application\.json$/.test(p)) continue;
+        const s = await stat(path.join(root, p));
+        if (s.isFile()) out.push({ path: p, uploadedAt: s.mtime });
+      }
+    }
+    return out;
+  }
+  const { list } = await import("@vercel/blob");
+  for (const prefix of ["cv-submissions/", "applications/", "candidates/"]) {
+    let cursor: string | undefined;
+    do {
+      const page = await list({ prefix, cursor, limit: 1000 });
+      for (const b of page.blobs) out.push({ path: b.pathname, uploadedAt: new Date(b.uploadedAt) });
+      cursor = page.hasMore ? page.cursor : undefined;
+    } while (cursor);
+  }
+  return out;
+}
+
+/** Deletes any stored path this module wrote (a CV, resume or its JSON record). */
+export async function deleteAnyStoredPath(filePath: string) {
+  if (STORED_PATH.test(filePath)) return deleteStoredFile(filePath);
+  if (/^cv-submissions\/\d{4}\/\d{2}\/[0-9a-f-]{36}\/application\.json$/.test(filePath)) {
+    const driver = storageDriver();
+    if (driver === "local") {
+      const { rm } = await import("node:fs/promises");
+      await rm(path.join(localRoot(), filePath), { force: true });
+    } else if (driver) {
+      const { del } = await import("@vercel/blob");
+      await del(filePath);
+    }
+  }
+}

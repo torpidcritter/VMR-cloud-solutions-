@@ -3,7 +3,7 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { ArrowRight, CheckCircle2, FileText, Loader2, Upload, X } from "lucide-react";
 import { describedBy, Field, Honeypot } from "./Field";
-import { experienceOptions, positionOptions, validateApplication, type Errors } from "@/lib/forms";
+import { experienceOptions, positionOptions, validateApplication, type Errors, newSubmissionId } from "@/lib/forms";
 import { site } from "@/content/site";
 
 type Status = "idle" | "sending" | "success" | "error";
@@ -17,6 +17,8 @@ export function CareerForm({ opening }: { opening?: { id: string; title: string 
   const [file, setFile] = useState<File | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const startedAt = useRef(Date.now());
+  // The same id is sent on a retry, so the server saves this submission once.
+  const submissionId = useRef(newSubmissionId());
 
   function onFile(e: ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0] ?? null;
@@ -51,6 +53,7 @@ export function CareerForm({ opening }: { opening?: { id: string; title: string 
       return;
     }
     fd.set("startedAt", String(startedAt.current));
+    fd.set("submissionId", submissionId.current);
     setStatus("sending");
     try {
       const res = await fetch("/api/careers", { method: "POST", body: fd });
@@ -83,6 +86,7 @@ export function CareerForm({ opening }: { opening?: { id: string; title: string 
           className="btn btn-secondary mt-8"
           onClick={() => {
             startedAt.current = Date.now();
+            submissionId.current = newSubmissionId();
             setStatus("idle");
           }}
         >

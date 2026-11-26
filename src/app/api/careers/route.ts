@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { RESUME_TYPES, validateApplication } from "@/lib/forms";
+import { fileExtension, type CvExtension } from "@/lib/cv";
+import { inspectCvFile } from "@/lib/file-check";
 import { clientIp, looksLikeBot, rateLimited } from "@/lib/guard";
 import { isMailConfigured, sendMail, tableHtml } from "@/lib/mailer";
-import { isStorageConfigured, storeResume } from "@/lib/cv-storage";
+import { deleteStoredFile, isStorageConfigured, storeResume } from "@/lib/cv-storage";
 import { isDbConfigured } from "@/lib/db/client";
 import { getLiveOpeningById } from "@/lib/data/openings";
-import { recordApplication } from "@/lib/data/applications";
+import { OpeningClosedError, recordApplication } from "@/lib/data/applications";
 import { getSettings } from "@/lib/data/settings";
 import { saveSubmission } from "@/lib/submissions";
 import { extractResumeText } from "@/lib/resume-text";
@@ -43,12 +45,11 @@ export async function POST(req: Request) {
   if (Object.keys(errors).length) return NextResponse.json({ ok: false, errors }, { status: 422 });
 
   const buffer = Buffer.from(await file!.arrayBuffer());
-  // Basic content check: PDF or Office (OLE / ZIP) signatures only.
-  const sig = buffer.subarray(0, 4).toString("hex");
-  if (!["25504446", "d0cf11e0", "504b0304"].includes(sig)) {
-    return NextResponse.json({ ok: false, errors: { resume: "Please upload a PDF or Word document." } }, { status: 422 });
-  }
-  const ext = RESUME_TYPES[file!.type] || file!.name.split(".").pop()?.toLowerCase() || "pdf";
+  // The file's own bytes must show a real PDF or Word document of the type it
+  // claims, without macros or scripts (same check as the CV upload form).
+  const ext: CvExtension = (RESUME_TYPES[file!.type] as CvExtension | undefined) ?? fileExtension(file!.name) ?? "pdf";
+  const check = inspectCvFile(buffer, ext);
+  if (!check.ok) return NextResponse.json({ ok: false, errors: { resume: check.reason } }, { status: 422 });
   const safeName = `${data.fullName.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "") || "resume"}-resume.${ext}`;
   const settings = await getSettings();
   const willEmail = settings.notifyApplications && isMailConfigured();
@@ -64,18 +65,37 @@ export async function POST(req: Request) {
     }
   }
 
-  const saved = await saveSubmission("careers", () =>
-    recordApplication({
-      candidate: { email: data.email, fullName: data.fullName, phone: data.phone },
-      openingId: opening?.id ?? null,
-      source: opening ? "job" : "careers",
-      position: data.position,
-      experience: data.experience,
-      message: data.message,
-      resume: resumeRef,
-      resumeText: resumeRef ? extractResumeText(buffer, ext) : null,
-    }),
-  );
+  let closed = false;
+  const saved = await saveSubmission("careers", async () => {
+    try {
+      return await recordApplication({
+        candidate: { email: data.email, fullName: data.fullName, phone: data.phone },
+        openingId: opening?.id ?? null,
+        source: opening ? "job" : "careers",
+        position: data.position,
+        experience: data.experience,
+        message: data.message,
+        resume: resumeRef,
+        resumeText: resumeRef ? extractResumeText(buffer, ext) : null,
+        submissionKey: typeof fields.submissionId === "string" ? fields.submissionId : null,
+      });
+    } catch (err) {
+      if (err instanceof OpeningClosedError) {
+        closed = true;
+        return null;
+      }
+      throw err;
+    }
+  });
+
+  // A stored resume that no application points to would be an orphan: remove it.
+  if (resumeRef && (!saved || saved.duplicate)) await deleteStoredFile(resumeRef.path).catch(() => undefined);
+
+  // The opening closed between loading the form and saving it.
+  if (closed) return NextResponse.json({ ok: false, error: "This opening is no longer accepting applications." }, { status: 410 });
+
+  // The same submission arrived twice (a retry or double click): it is already saved and was already emailed.
+  if (saved?.duplicate) return NextResponse.json({ ok: true });
 
   // Not stored anywhere and no email possible: don't pretend it worked.
   if (!saved && !willEmail) {

@@ -40,11 +40,14 @@ export async function bulkApplicationsAction(form: FormData): Promise<BulkResult
   if (op === "status") {
     if (!(APPLICATION_STATUSES as readonly string[]).includes(value)) return { ok: false, error: "Choose a stage." };
     const label = APPLICATION_STATUS_LABELS[value as ApplicationStatus];
-    const n = await bulkSetStatus(ids, value as ApplicationStatus, me.id);
+    const n = await bulkSetStatus(ids, value as ApplicationStatus, me.id, { superAdmin: me.role === "super_admin" });
     if (n) await logActivity(me.id, "status", "application", null, `Moved ${plural(n, "application")} to ${label} (bulk)`);
     revalidatePath("/admin/applications");
     revalidatePath("/admin/pipeline");
-    return { ok: true, count: n, message: n ? `Moved ${n} ${of} to ${label}.` : `All of them were already in ${label}.` };
+    // Applications already in that stage, or for which the move isn't allowed (for example to Hired before an interview), are left as they are.
+    const skipped = ids.length - n;
+    const note = skipped ? ` ${plural(skipped, "application")} left as ${skipped === 1 ? "it was" : "they were"}: already in ${label}, or that move isn't allowed from their stage.` : "";
+    return { ok: true, count: n, message: n ? `Moved ${n} ${of} to ${label}.${note}` : `None moved: they're already in ${label}, or that move isn't allowed from their stage.` };
   }
 
   if (op === "assign") {

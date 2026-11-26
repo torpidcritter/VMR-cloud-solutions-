@@ -52,7 +52,7 @@ describe("schema", () => {
   it("applies migrations once and records the version", async () => {
     const conn = await db();
     const rows = await conn.query<{ version: number }>(`SELECT version FROM schema_migrations ORDER BY version`);
-    expect(rows.map((r) => Number(r.version))).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(rows.map((r) => Number(r.version))).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
   });
 });
 
@@ -231,7 +231,15 @@ describe("ATS: candidates, pipeline and job openings", () => {
     expect(await apps.setApplicationStatus(row.id, "screening", adminId)).toBe(true);
     // Moving to the stage it is already in changes nothing and writes no history.
     expect(await apps.setApplicationStatus(row.id, "screening", adminId)).toBe(false);
+    // Hired only follows an interview, a selection or an offer (H-05).
+    expect(await apps.setApplicationStatus(row.id, "hired", adminId)).toBe(false);
+    expect((await apps.getApplication(row.id))?.status).toBe("screening");
+    expect(await apps.setApplicationStatus(row.id, "interview_completed", adminId)).toBe(true);
     expect(await apps.setApplicationStatus(row.id, "hired", adminId)).toBe(true);
+    // A hire is only undone by a super admin, and only back to Offer released.
+    expect(await apps.setApplicationStatus(row.id, "screening", adminId, { superAdmin: true })).toBe(false);
+    expect(await apps.setApplicationStatus(row.id, "offer_released", adminId)).toBe(false);
+    expect((await apps.getApplication(row.id))?.status).toBe("hired");
     const conn = await db();
     const [h] = await conn.query<{ hired_at: string | null }>(`SELECT hired_at FROM applications WHERE id = $1`, [row.id]);
     expect(h.hired_at).toBeTruthy();
@@ -991,11 +999,11 @@ describe("ATS: audit log", () => {
   });
 
   it("keeps entries only for the retention period, never less than 90 days", async () => {
-    const { pruneAudit, recordLogin, listLogins } = await audit();
+    const { pruneAudit, listLogins } = await audit();
     const conn = await db();
     await conn.query(`INSERT INTO activity_log (user_id, action, entity, summary, created_at) VALUES ($1, 'update', 'task', 'old', now() - interval '800 days'), ($1, 'update', 'task', 'recent', now() - interval '50 days')`, [auditorId]);
-    await recordLogin({ userId: auditorId, email: "audit.tester@example.test", outcome: "success" });
-    await conn.query(`UPDATE login_events SET created_at = now() - interval '800 days' WHERE id = (SELECT id FROM login_events WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1)`, [auditorId]);
+    // Audit rows can't be edited (migration 8), so the old sign-in is written with its age.
+    await conn.query(`INSERT INTO login_events (user_id, email, outcome, created_at) VALUES ($1, 'audit.tester@example.test', 'success', now() - interval '800 days')`, [auditorId]);
     const before = (await listLogins({ user: auditorId })).total;
     const r = await pruneAudit(10);
     expect(r.keepDays).toBe(90);

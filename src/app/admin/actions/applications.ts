@@ -4,9 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { assertAdmin } from "@/lib/auth/session";
 import { addApplicationNote, deleteApplication, getApplication, setApplicationStatus } from "@/lib/data/applications";
-import { APPLICATION_STATUSES, APPLICATION_STATUS_LABELS, type ApplicationStatus } from "@/lib/data/constants";
+import { APPLICATION_STATUSES, APPLICATION_STATUS_LABELS, canMoveApplication, type ApplicationStatus } from "@/lib/data/constants";
 import { logActivity } from "@/lib/data/activity";
-import { deleteStoredFile } from "@/lib/cv-storage";
+import { deleteStoredFile, deleteSubmissionRecord } from "@/lib/cv-storage";
 import type { ActionState } from "@/components/admin/forms";
 
 export async function setApplicationStatusAction(form: FormData) {
@@ -16,7 +16,9 @@ export async function setApplicationStatusAction(form: FormData) {
   if (!APPLICATION_STATUSES.includes(status)) return;
   const app = await getApplication(id);
   if (!app) return;
-  if (await setApplicationStatus(id, status, me.id)) {
+  const superAdmin = me.role === "super_admin";
+  if (app.status !== status && !canMoveApplication(app.status, status, superAdmin)) redirect(`/admin/applications/${id}?refused=1`);
+  if (await setApplicationStatus(id, status, me.id, { superAdmin })) {
     await logActivity(me.id, "status", "application", id, `#${app.number} ${app.full_name}: ${APPLICATION_STATUS_LABELS[app.status]} → ${APPLICATION_STATUS_LABELS[status]}`);
   }
   revalidatePath(`/admin/applications/${id}`);
@@ -41,10 +43,14 @@ export async function deleteApplicationAction(form: FormData) {
   const id = String(form.get("id") ?? "");
   const app = await getApplication(id);
   if (!app) redirect("/admin/applications");
+  // A hire is a business record (placements, targets, invoices); it is kept.
+  if (app.status === "hired") redirect(`/admin/applications/${id}?nodelete=1`);
   const resume = await deleteApplication(id);
   if (resume) {
     try {
       await deleteStoredFile(resume);
+      // Upload CV keeps the form answers next to the CV; they go too.
+      await deleteSubmissionRecord(resume);
     } catch (err) {
       console.error("[admin] resume delete failed", err instanceof Error ? err.message : err);
     }

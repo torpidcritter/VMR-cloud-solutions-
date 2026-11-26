@@ -448,4 +448,34 @@ export const MIGRATIONS: { version: number; statements: string[] }[] = [
       `CREATE INDEX activity_log_entity ON activity_log(entity, entity_id, created_at DESC)`,
     ],
   },
+  {
+    // Hardening H1: one application per form submission, and an audit trail
+    // that ordinary code cannot rewrite.
+    // Rollback (manual, if ever needed): DROP TRIGGER activity_log_append_only ON activity_log;
+    // DROP TRIGGER login_events_append_only ON login_events; DROP FUNCTION audit_append_only();
+    // DROP INDEX applications_submission_key; ALTER TABLE applications DROP COLUMN submission_key;
+    // DELETE FROM schema_migrations WHERE version = 8.
+    version: 8,
+    statements: [
+      `ALTER TABLE applications ADD COLUMN submission_key text`,
+      `CREATE UNIQUE INDEX applications_submission_key ON applications(submission_key)`,
+      `CREATE FUNCTION audit_append_only() RETURNS trigger LANGUAGE plpgsql AS $fn$
+       BEGIN
+         IF TG_OP = 'UPDATE' THEN
+           -- The only change allowed: the person's link cleared when their account is removed.
+           IF NEW.user_id IS NULL AND (to_jsonb(NEW) - 'user_id') = (to_jsonb(OLD) - 'user_id') THEN
+             RETURN NEW;
+           END IF;
+           RAISE EXCEPTION 'Audit records cannot be changed';
+         END IF;
+         IF OLD.created_at > now() - interval '90 days' THEN
+           RAISE EXCEPTION 'Audit records are kept for at least 90 days';
+         END IF;
+         RETURN OLD;
+       END
+       $fn$`,
+      `CREATE TRIGGER activity_log_append_only BEFORE UPDATE OR DELETE ON activity_log FOR EACH ROW EXECUTE FUNCTION audit_append_only()`,
+      `CREATE TRIGGER login_events_append_only BEFORE UPDATE OR DELETE ON login_events FOR EACH ROW EXECUTE FUNCTION audit_append_only()`,
+    ],
+  },
 ];

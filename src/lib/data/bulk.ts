@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db/client";
-import { APPLICATION_STATUSES, type ApplicationStatus } from "./constants";
+import { APPLICATION_STATUSES, canMoveApplication, type ApplicationStatus } from "./constants";
 import { exportApplications, type ApplicationFilters } from "./applications";
 import { isIsoDate } from "@/lib/dates";
 
@@ -19,13 +19,19 @@ export async function applicationIdsMatching(f: ApplicationFilters, cap = BULK_L
   return (await exportApplications(f)).slice(0, cap).map((r) => r.id);
 }
 
-/** Moves applications to a stage. Those already there are left alone. Returns how many moved. */
-export async function bulkSetStatus(ids: string[], status: ApplicationStatus, userId: string) {
+/**
+ * Moves applications to a stage. Those already there, or that may not move
+ * there from where they are (see canMoveApplication), are left alone.
+ * Returns how many moved.
+ */
+export async function bulkSetStatus(ids: string[], status: ApplicationStatus, userId: string, { superAdmin = false }: { superAdmin?: boolean } = {}) {
   const list = clean(ids);
   if (!list.length || !APPLICATION_STATUSES.includes(status)) return 0;
+  const from = APPLICATION_STATUSES.filter((f) => canMoveApplication(f, status, superAdmin));
+  if (!from.length) return 0;
   const conn = await db();
   const [row] = await conn.query<{ n: number }>(
-    `WITH prev AS (SELECT id, candidate_id, status FROM applications WHERE id = ANY($1::uuid[]) AND status <> $2 FOR UPDATE),
+    `WITH prev AS (SELECT id, candidate_id, status FROM applications WHERE id = ANY($1::uuid[]) AND status = ANY($4::text[]) FOR UPDATE),
      moved AS (
        UPDATE applications a SET status = $2, stage_changed_at = now(), updated_at = now(),
               hired_at = CASE WHEN $2 = 'hired' THEN COALESCE(a.hired_at, now()) ELSE a.hired_at END
@@ -36,7 +42,7 @@ export async function bulkSetStatus(ids: string[], status: ApplicationStatus, us
        SELECT id, candidate_id, $3, 'status', status, $2, '{"bulk": true}'::jsonb FROM prev
      )
      SELECT count(*)::int AS n FROM moved`,
-    [list, status, userId],
+    [list, status, userId, from],
   );
   return Number(row.n);
 }

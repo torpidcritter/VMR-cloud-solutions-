@@ -5,10 +5,10 @@ import { Download, Eye, Mail, Phone, UserRound } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/session";
 import { can } from "@/lib/auth/permissions";
 import { getApplication, recruiterOptions } from "@/lib/data/applications";
-import { APPLICATION_SOURCE_LABELS, APPLICATION_STATUSES, APPLICATION_STATUS_LABELS } from "@/lib/data/constants";
+import { APPLICATION_SOURCE_LABELS, APPLICATION_STATUSES, APPLICATION_STATUS_LABELS, canMoveApplication } from "@/lib/data/constants";
 import { EVENT_KIND_LABELS, EventText, PriorityBadge, eventTone } from "@/components/admin/candidate-ui";
 import { ConfirmButton, SubmitButton } from "@/components/admin/forms";
-import { ApplicationStatusBadge, Badge, PageHeader, Panel, formatDate, formatDateTime } from "@/components/admin/ui";
+import { ApplicationStatusBadge, Badge, Notice, PageHeader, Panel, formatDate, formatDateTime } from "@/components/admin/ui";
 import { deleteApplicationAction, setApplicationStatusAction } from "../../../actions/applications";
 import { assignApplicationAction } from "../../../actions/pipeline";
 import { interviewerOptions, listInterviews } from "@/lib/data/interviews";
@@ -19,11 +19,13 @@ import { NoteForm } from "./NoteForm";
 
 export const metadata: Metadata = { title: "Application" };
 
-const DETAIL_LABELS: Record<string, string> = { employmentType: "Employment type", preferredLocation: "Preferred location", consentVersion: "Consent (policy version)", consentAt: "Consent given", reference: "Upload reference" };
+const DETAIL_LABELS: Record<string, string> = { employmentType: "Employment type", preferredLocation: "Preferred location", consentVersion: "Consent (policy version)", consentAt: "Consent given", reference: "Upload reference", submittedName: "Name as submitted", submittedPhone: "Phone as submitted" };
 
-export default async function ApplicationPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ApplicationPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const me = await requireAdmin("applications.view");
   const a = await getApplication((await params).id);
+  const sp = await searchParams;
+  const superAdmin = me.role === "super_admin";
   if (!a) notFound();
   const showClient = can(me.role, "openings.viewClient");
   const editable = can(me.role, "applications.update");
@@ -53,6 +55,13 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
       <Link href="/admin/applications" className="text-sm text-muted hover:text-brand-600">
         ← Applications
       </Link>
+      {sp.refused && (
+        <Notice tone="amber">
+          That stage change isn&rsquo;t allowed. An application can only be marked Hired after an interview, selection or offer, and a Hired application can only be moved back to Offer released, by a
+          super admin.
+        </Notice>
+      )}
+      {sp.nodelete && <Notice tone="amber">A Hired application can&rsquo;t be deleted, because it is part of the placement record. Move it back to Offer released first if it was a mistake.</Notice>}
       <PageHeader
         title={a.full_name}
         description={
@@ -179,16 +188,27 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
           {editable && (
             <Panel title="Status">
               <div className="flex flex-wrap gap-2">
-                {APPLICATION_STATUSES.map((s) => (
-                  <form key={s} action={setApplicationStatusAction}>
-                    <input type="hidden" name="id" value={a.id} />
-                    <input type="hidden" name="status" value={s} />
-                    <SubmitButton className={`a-chip ${a.status === s ? "!border-btn !bg-btn !text-white" : ""}`} pendingLabel="…">
+                {APPLICATION_STATUSES.map((s) =>
+                  s === a.status ? (
+                    <span key={s} aria-current="true" className="a-chip !border-btn !bg-btn !text-white">
                       {APPLICATION_STATUS_LABELS[s]}
-                    </SubmitButton>
-                  </form>
-                ))}
+                    </span>
+                  ) : canMoveApplication(a.status, s, superAdmin) ? (
+                    <form key={s} action={setApplicationStatusAction}>
+                      <input type="hidden" name="id" value={a.id} />
+                      <input type="hidden" name="status" value={s} />
+                      <SubmitButton className="a-chip" pendingLabel="…">
+                        {APPLICATION_STATUS_LABELS[s]}
+                      </SubmitButton>
+                    </form>
+                  ) : null,
+                )}
               </div>
+              {a.status === "hired" ? (
+                <p className="mt-3 text-xs text-muted">{superAdmin ? "A Hired application can only be moved back to Offer released." : "Only a super admin can move a Hired application back."}</p>
+              ) : a.status !== "interview_completed" && a.status !== "selected" && a.status !== "offer_released" ? (
+                <p className="mt-3 text-xs text-muted">Hired becomes available after Interview completed, Selected or Offer released.</p>
+              ) : null}
             </Panel>
           )}
 
@@ -238,7 +258,7 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
             )}
           </Panel>
 
-          {can(me.role, "applications.delete") && (
+          {can(me.role, "applications.delete") && a.status !== "hired" && (
             <Panel title="Delete">
               <p className="mb-3 text-sm text-muted">Removes this application, its notes and its stored resume. Use this for data-deletion requests.</p>
               <ConfirmButton action={deleteApplicationAction} hidden={{ id: a.id }} confirm={`Delete application #${a.number} from ${a.full_name}? This can't be undone.`}>

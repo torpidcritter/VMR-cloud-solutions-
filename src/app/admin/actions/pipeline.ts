@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { assertAdmin, ForbiddenError } from "@/lib/auth/session";
 import { assignApplication, getApplication, recruiterOptions, setApplicationStatus } from "@/lib/data/applications";
-import { APPLICATION_STATUSES, APPLICATION_STATUS_LABELS, type ApplicationStatus } from "@/lib/data/constants";
+import { APPLICATION_STATUSES, APPLICATION_STATUS_LABELS, MOVE_REFUSED, canMoveApplication, type ApplicationStatus } from "@/lib/data/constants";
 import { logActivity } from "@/lib/data/activity";
 import { notify } from "@/lib/data/notifications";
 
@@ -22,7 +22,9 @@ export async function moveApplicationAction(id: string, status: string): Promise
   const app = await getApplication(id);
   if (!app) return { ok: false, error: "This application no longer exists." };
   if (app.status === status) return { ok: true };
-  const moved = await setApplicationStatus(id, status as ApplicationStatus, me.id);
+  const superAdmin = me.role === "super_admin";
+  if (!canMoveApplication(app.status, status as ApplicationStatus, superAdmin)) return { ok: false, error: MOVE_REFUSED };
+  const moved = await setApplicationStatus(id, status as ApplicationStatus, me.id, { superAdmin });
   if (!moved) return { ok: false, error: "Someone else moved this card a moment ago. The board has been refreshed." };
   await logActivity(me.id, "status", "application", id, `#${app.number} ${app.full_name}: ${APPLICATION_STATUS_LABELS[app.status]} → ${APPLICATION_STATUS_LABELS[status as ApplicationStatus]}`);
   revalidatePath("/admin/pipeline");

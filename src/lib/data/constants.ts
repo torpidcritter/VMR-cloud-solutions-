@@ -126,3 +126,22 @@ export const REQUIREMENT_STATUS_LABELS: Record<RequirementStatus, string> = { op
 
 /** How long the audit log may be kept, in days (offered in Settings). */
 export const RETENTION_CHOICES = [90, 180, 365, 730, 1095, 1825, 3650] as const;
+
+/**
+ * Which stage moves are allowed. Hired is final (only a Super Admin can
+ * correct it back to Offer Released), a hire needs a completed interview,
+ * a selection or an offer first, and a rejected application can only be
+ * reopened at an early stage. Every move path on the server checks this.
+ */
+export function canMoveApplication(from: ApplicationStatus, to: ApplicationStatus, isSuperAdmin = false): boolean {
+  if (from === to) return false;
+  if (from === "hired") return isSuperAdmin && to === "offer_released";
+  if (to === "hired") return from === "interview_completed" || from === "selected" || from === "offer_released";
+  if (from === "rejected") return to === "new" || to === "screening" || to === "shortlisted" || to === "on_hold";
+  return true;
+}
+/** The stages an application in `from` may move to, in pipeline order. */
+export function nextStages(from: ApplicationStatus, isSuperAdmin = false): ApplicationStatus[] {
+  return APPLICATION_STATUSES.filter((to) => canMoveApplication(from, to, isSuperAdmin));
+}
+export const MOVE_REFUSED = "That move isn't allowed: a hire needs a completed interview, a selection or an offer first; Hired is final; a rejected application can only be reopened at an early stage.";

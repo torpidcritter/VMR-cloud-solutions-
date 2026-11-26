@@ -18,6 +18,9 @@ vi.mock("@/lib/data/notifications", () => ({ notify: (...a: unknown[]) => notify
 const prune = vi.fn();
 vi.mock("@/lib/data/audit", () => ({ pruneAudit: (...a: unknown[]) => prune(...a) }));
 vi.mock("@/lib/data/settings", () => ({ getSettings: async () => ({ auditRetentionDays: 365 }) }));
+const sweep = vi.fn();
+vi.mock("@/lib/data/files", () => ({ sweepOrphanFiles: (...a: unknown[]) => sweep(...a) }));
+const FILES = { checked: 3, deleted: 1, skipped: null };
 const PRUNED = { keepDays: 365, activity: 4, logins: 2, notifications: 1 };
 vi.mock("@/lib/mailer", async () => {
   const real = await vi.importActual<typeof import("@/lib/mailer")>("@/lib/mailer");
@@ -47,6 +50,7 @@ describe("GET /api/cron/reminders", () => {
     claimDue.mockResolvedValue({ tasks: [], followUps: [] });
     notify.mockResolvedValue(1);
     prune.mockResolvedValue(PRUNED);
+    sweep.mockResolvedValue(FILES);
   });
 
   it("refuses calls without the secret, and stays closed when no secret is set", async () => {
@@ -66,7 +70,7 @@ describe("GET /api/cron/reminders", () => {
     });
     const res = await call(`Bearer ${SECRET}`);
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ due: 3, sent: 1, failed: 1, notified: 0, pruned: PRUNED });
+    expect(await res.json()).toEqual({ due: 3, sent: 1, failed: 1, notified: 0, pruned: PRUNED, files: FILES });
     expect(prune).toHaveBeenCalledWith(365);
     expect(send).toHaveBeenCalledTimes(2);
     expect(send.mock.calls[0][0]).toMatchObject({ to: "recruiter@example.test" });
@@ -89,11 +93,12 @@ describe("GET /api/cron/reminders", () => {
   it("still sends interview emails when the in-app reminders fail", async () => {
     claimDue.mockRejectedValue(new Error("db busy"));
     prune.mockRejectedValue(new Error("db busy"));
+    sweep.mockRejectedValue(new Error("blob down"));
     const err = vi.spyOn(console, "error").mockImplementation(() => {});
     due.mockResolvedValue([interview("a")]);
     claim.mockResolvedValue(true);
     send.mockResolvedValue({});
-    expect(await (await call(`Bearer ${SECRET}`)).json()).toEqual({ due: 1, sent: 1, failed: 0, notified: 0, pruned: null });
+    expect(await (await call(`Bearer ${SECRET}`)).json()).toEqual({ due: 1, sent: 1, failed: 0, notified: 0, pruned: null, files: null });
     err.mockRestore();
   });
 });

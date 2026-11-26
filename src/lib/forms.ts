@@ -92,3 +92,14 @@ export function validateApplication(input: Record<string, unknown>, file?: { siz
   else if (!RESUME_TYPES[file.type] && !/\.(pdf|docx?)$/i.test(file.name)) errors.resume = "Please upload a PDF or Word document.";
   return { data, errors };
 }
+
+/** A random id for one form submission, so a retry or double click is saved once. */
+export function newSubmissionId(): string {
+  const c = globalThis.crypto;
+  if (typeof c?.randomUUID === "function") return c.randomUUID();
+  const b = c.getRandomValues(new Uint8Array(16));
+  b[6] = (b[6] & 0x0f) | 0x40;
+  b[8] = (b[8] & 0x3f) | 0x80;
+  const h = Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}

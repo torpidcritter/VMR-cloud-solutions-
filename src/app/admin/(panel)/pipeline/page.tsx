@@ -97,7 +97,7 @@ export default async function PipelinePage({ searchParams }: { searchParams: Pro
       </section>
 
       {truncated && <Notice tone="amber">Showing the 600 most recently moved applications. Choose a job opening or recruiter to see the rest.</Notice>}
-      <Board cards={cards} canMove={can(me.role, "applications.update")} />
+      <Board cards={cards} canMove={can(me.role, "applications.update")} superAdmin={me.role === "super_admin"} />
       <p className="mt-2 text-xs text-muted">Priority labels come from the candidate profile ({CANDIDATE_PRIORITIES.filter((p) => p === "high" || p === "urgent").map((p) => CANDIDATE_PRIORITY_LABELS[p]).join(", ")} are shown on cards).</p>
     </>
   );
