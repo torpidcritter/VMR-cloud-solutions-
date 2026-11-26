@@ -2,8 +2,8 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { clientIp, rateLimited } from "@/lib/guard";
-import { currentAdmin, endAllSessions, normaliseEmail, requireAdmin, signIn, signOut, startSession } from "@/lib/auth/session";
+import { clientIp, RATE_LIMIT_MAX, rateLimit, rateLimited } from "@/lib/guard";
+import { currentAdmin, endAllSessions, normaliseEmail, requireAdmin, signIn, signOut, startSession, verifySecondStep } from "@/lib/auth/session";
 import { passwordProblem, verifyPassword } from "@/lib/auth/password";
 import { countAdmins, createFirstAdmin, getPasswordHash, setPassword } from "@/lib/data/users";
 import { logActivity } from "@/lib/data/activity";
@@ -11,9 +11,6 @@ import { recordLogin } from "@/lib/data/audit";
 import type { ActionState } from "@/components/admin/forms";
 
 const s = (v: FormDataEntryValue | null, max = 300) => (typeof v === "string" ? v.slice(0, max) : "");
-
-/** One "too many attempts" entry per network every 10 minutes, so a flood can't fill the log. */
-const limitedLogged = new Map<string, number>();
 
 async function requestMeta() {
   const h = await headers();
@@ -30,18 +27,30 @@ export async function signInAction(_: ActionState, form: FormData): Promise<Acti
   const password = s(form.get("password"), 200);
   if (!email || !password) return { error: "Enter your email and password.", data: { email } };
   const meta = await requestMeta();
-  if (rateLimited(`admin-login:${meta.ip}`)) {
-    const last = limitedLogged.get(meta.ip) ?? 0;
-    if (Date.now() - last > 10 * 60_000) {
-      if (limitedLogged.size > 5000) limitedLogged.clear();
-      limitedLogged.set(meta.ip, Date.now());
-      await recordLogin({ email, outcome: "rate_limited", ...meta });
-    }
+  const limit = await rateLimit(`admin-login:${meta.ip}`);
+  if (limit.limited) {
+    // Only the first refused attempt in each window is logged, so a flood can't fill the log.
+    if (limit.hits === RATE_LIMIT_MAX + 1) await recordLogin({ email, outcome: "rate_limited", ...meta });
     return { error: "Too many sign-in attempts from this network. Wait 10 minutes and try again.", data: { email } };
   }
   const res = await signIn(email, password, meta);
   if (!res.ok) return { error: res.error, data: { email } };
+  if (res.needsCode) redirect(`/admin/login/verify?next=${encodeURIComponent(safeNext(s(form.get("next"))))}`);
   await logActivity(res.user.id, "signin", "user", res.user.id, `${res.user.name} signed in`);
+  redirect(res.user.mustChangePassword ? "/admin/change-password" : safeNext(s(form.get("next"))));
+}
+
+/** Second sign-in step: the code from the authenticator app, or a recovery code. */
+export async function verifyCodeAction(_: ActionState, form: FormData): Promise<ActionState> {
+  const code = s(form.get("code"), 20);
+  if (!code.trim()) return { error: "Enter the 6-digit code from your authenticator app." };
+  const res = await verifySecondStep(code, await requestMeta());
+  if (!res.ok) {
+    if (/again/.test(res.error) && /password/.test(res.error)) redirect("/admin/login?expired=1");
+    return { error: res.error };
+  }
+  if (res.needsCode) return { error: "Enter the code again." };
+  await logActivity(res.user.id, "signin", "user", res.user.id, `${res.user.name} signed in (with two-step code)`);
   redirect(res.user.mustChangePassword ? "/admin/change-password" : safeNext(s(form.get("next"))));
 }
 
@@ -57,7 +66,7 @@ export async function setupAction(_: ActionState, form: FormData): Promise<Actio
   const data = { name: s(form.get("name"), 120), email: s(form.get("email"), 200) };
   if (!key) return { error: "Setup is switched off. Add ADMIN_SETUP_KEY in Vercel first.", data };
   const meta = await requestMeta();
-  if (rateLimited(`admin-setup:${meta.ip}`)) return { error: "Too many attempts. Wait 10 minutes and try again.", data };
+  if (await rateLimited(`admin-setup:${meta.ip}`)) return { error: "Too many attempts. Wait 10 minutes and try again.", data };
   if (s(form.get("setupKey"), 200) !== key) return { error: "The setup key is not correct.", data };
   if ((await countAdmins()) > 0) redirect("/admin/login");
 

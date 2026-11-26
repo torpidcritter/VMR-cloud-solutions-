@@ -478,4 +478,67 @@ export const MIGRATIONS: { version: number; statements: string[] }[] = [
       `CREATE TRIGGER login_events_append_only BEFORE UPDATE OR DELETE ON login_events FOR EACH ROW EXECUTE FUNCTION audit_append_only()`,
     ],
   },
+  {
+    // Hardening H2: a rate limit shared by every server instance (M-14), one send per
+    // compose form for candidate emails (M-18), and a version number on profiles so a
+    // second editor can't silently overwrite the first (M-15).
+    // Rollback: DROP TABLE rate_limits; DROP INDEX email_messages_send_key;
+    // ALTER TABLE email_messages DROP COLUMN send_key; (after deleting rows with status 'sending')
+    // ALTER TABLE email_messages DROP CONSTRAINT email_messages_status_check,
+    //   ADD CONSTRAINT email_messages_status_check CHECK (status IN ('sent','failed'));
+    // DROP TRIGGER candidates_version ON candidates; DROP FUNCTION candidates_bump_version();
+    // ALTER TABLE candidates DROP COLUMN version; ALTER TABLE admin_sessions DROP COLUMN last_seen_at;
+    // DROP TABLE mfa_challenges; DROP TABLE admin_recovery_codes; ALTER TABLE admin_users DROP COLUMN totp_secret,
+    //   DROP COLUMN totp_pending_secret, DROP COLUMN totp_enabled_at, DROP COLUMN totp_last_step;
+    // (login_events keeps 'mfa_failed' rows; widen the check rather than narrowing it back.)
+    // DELETE FROM schema_migrations WHERE version = 9.
+    version: 9,
+    statements: [
+      `CREATE TABLE rate_limits (
+         key text NOT NULL,
+         window_start timestamptz NOT NULL,
+         hits int NOT NULL DEFAULT 0,
+         PRIMARY KEY (key, window_start)
+       )`,
+      `ALTER TABLE email_messages ADD COLUMN send_key text`,
+      `CREATE UNIQUE INDEX email_messages_send_key ON email_messages(send_key)`,
+      `ALTER TABLE email_messages DROP CONSTRAINT IF EXISTS email_messages_status_check`,
+      `ALTER TABLE email_messages ADD CONSTRAINT email_messages_status_check CHECK (status IN ('sending','sent','failed'))`,
+      `ALTER TABLE candidates ADD COLUMN version int NOT NULL DEFAULT 0`,
+      // Sessions also end after 60 minutes without activity (L-21).
+      `ALTER TABLE admin_sessions ADD COLUMN last_seen_at timestamptz NOT NULL DEFAULT now()`,
+      // Two-step sign-in with an authenticator app (H-06). The secret waits in
+      // totp_pending_secret until the person confirms a code from their app.
+      `ALTER TABLE admin_users ADD COLUMN totp_secret text, ADD COLUMN totp_pending_secret text,
+         ADD COLUMN totp_enabled_at timestamptz, ADD COLUMN totp_last_step bigint`,
+      `CREATE TABLE admin_recovery_codes (
+         user_id uuid NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+         code_hash text NOT NULL,
+         used_at timestamptz,
+         PRIMARY KEY (user_id, code_hash)
+       )`,
+      // Between a correct password and the code: a short-lived, single-use challenge.
+      `CREATE TABLE mfa_challenges (
+         id text PRIMARY KEY,
+         user_id uuid NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+         expires_at timestamptz NOT NULL,
+         attempts int NOT NULL DEFAULT 0,
+         next_path text NOT NULL DEFAULT '/admin'
+       )`,
+      `ALTER TABLE login_events DROP CONSTRAINT IF EXISTS login_events_outcome_check`,
+      `ALTER TABLE login_events ADD CONSTRAINT login_events_outcome_check
+         CHECK (outcome IN ('success','bad_password','locked','unknown','inactive','rate_limited','signout','mfa_failed'))`,
+      `CREATE FUNCTION candidates_bump_version() RETURNS trigger LANGUAGE plpgsql AS $fn$
+       BEGIN
+         NEW.version := OLD.version + 1;
+         RETURN NEW;
+       END
+       $fn$`,
+      // Only the fields on the profile form count as an edit; priority, owner, follow-up and
+      // "last contacted" change often and don't conflict with someone editing the profile.
+      `CREATE TRIGGER candidates_version BEFORE UPDATE ON candidates FOR EACH ROW
+       WHEN (ROW(OLD.email, OLD.full_name, OLD.phone, OLD.location, OLD.preferred_location, OLD.specialisation, OLD.current_title, OLD.current_company, OLD.experience_years, OLD.notice_period, OLD.availability, OLD.qualifications, OLD.skills, OLD.tags, OLD.linkedin_url, OLD.summary) IS DISTINCT FROM ROW(NEW.email, NEW.full_name, NEW.phone, NEW.location, NEW.preferred_location, NEW.specialisation, NEW.current_title, NEW.current_company, NEW.experience_years, NEW.notice_period, NEW.availability, NEW.qualifications, NEW.skills, NEW.tags, NEW.linkedin_url, NEW.summary))
+       EXECUTE FUNCTION candidates_bump_version()`,
+    ],
+  },
 ];

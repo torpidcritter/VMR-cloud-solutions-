@@ -1,3 +1,4 @@
+import { getSettings } from "@/lib/data/settings";
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -56,6 +57,7 @@ const NAV: { label: string; items: (NavItem & { perm: Permission })[] }[] = [
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
   const me = await requireAdmin();
   if (me.mustChangePassword) redirect("/admin/change-password");
+  if (me.role === "super_admin" && !me.mfaEnabled && (await getSettings()).requireMfaForSuperAdmins) redirect("/admin/security?required=1");
   const groups: NavGroup[] = NAV.map((g) => ({
     label: g.label,
     items: g.items.filter((n) => can(me.role, n.perm)).map((n) => ({ href: n.href, label: n.label, icon: n.icon })),
@@ -107,6 +109,9 @@ export default async function PanelLayout({ children }: { children: React.ReactN
                 </a>
                 <Link href="/admin/change-password" className="block rounded-lg px-3 py-2 text-sm hover:bg-surface">
                   Change password
+                </Link>
+                <Link href="/admin/security" className="block rounded-lg px-3 py-2 text-sm hover:bg-surface">
+                  Two-step sign-in {me.mfaEnabled ? <span className="text-xs text-emerald-600">(on)</span> : <span className="text-xs text-muted">(off)</span>}
                 </Link>
                 <form action={signOutAction}>
                   <button type="submit" className="w-full rounded-lg px-3 py-2 text-left text-sm text-accent-600 hover:bg-surface">

@@ -15,6 +15,8 @@ export type Settings = {
   showCareerAreasFallback: boolean;
   /** How long the activity log and sign-in records are kept (the daily job deletes older entries). */
   auditRetentionDays: number;
+  /** Super Admins must use two-step sign-in (an authenticator app) before they can use the panel. */
+  requireMfaForSuperAdmins: boolean;
 };
 
 export function defaultSettings(): Settings {
@@ -25,6 +27,7 @@ export function defaultSettings(): Settings {
     notifyEnquiries: true,
     showCareerAreasFallback: true,
     auditRetentionDays: 730,
+    requireMfaForSuperAdmins: false,
   };
 }
 

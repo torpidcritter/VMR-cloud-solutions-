@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { RESUME_TYPES, validateApplication } from "@/lib/forms";
-import { fileExtension, type CvExtension } from "@/lib/cv";
+import { CONSENT_VERSION, fileExtension, type CvExtension } from "@/lib/cv";
 import { inspectCvFile } from "@/lib/file-check";
 import { clientIp, looksLikeBot, rateLimited } from "@/lib/guard";
 import { isMailConfigured, sendMail, tableHtml } from "@/lib/mailer";
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
   const fields = Object.fromEntries(Array.from(form.entries()).filter(([, v]) => typeof v === "string"));
 
   if (looksLikeBot(fields.website, fields.startedAt)) return NextResponse.json({ ok: true });
-  if (rateLimited(clientIp(req.headers))) {
+  if (await rateLimited(clientIp(req.headers))) {
     return NextResponse.json({ ok: false, error: "Too many submissions. Please try again in a few minutes." }, { status: 429 });
   }
 
@@ -65,6 +65,7 @@ export async function POST(req: Request) {
     }
   }
 
+  const submittedAt = new Date().toISOString();
   let closed = false;
   const saved = await saveSubmission("careers", async () => {
     try {
@@ -75,6 +76,7 @@ export async function POST(req: Request) {
         position: data.position,
         experience: data.experience,
         message: data.message,
+        details: { consentVersion: CONSENT_VERSION, consentAt: submittedAt },
         resume: resumeRef,
         resumeText: resumeRef ? extractResumeText(buffer, ext) : null,
         submissionKey: typeof fields.submissionId === "string" ? fields.submissionId : null,
@@ -111,6 +113,7 @@ export async function POST(req: Request) {
       ["Position", data.position],
       ["Experience", data.experience],
       ["Message", data.message],
+      ["Consent", `Given ${submittedAt} (policy version ${CONSENT_VERSION})`],
     ];
     if (saved) rows.push(["Admin reference", `#${saved.number}${saved.repeat ? " (has applied before)" : ""}`]);
     try {

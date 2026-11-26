@@ -18,12 +18,15 @@ export async function saveSettingsAction(_: ActionState, form: FormData): Promis
     notifyEnquiries: form.get("notifyEnquiries") === "on",
     showCareerAreasFallback: form.get("showCareerAreasFallback") === "on",
     auditRetentionDays: Number(form.get("auditRetentionDays")),
+    requireMfaForSuperAdmins: form.get("requireMfaForSuperAdmins") === "on",
   };
   const errors: Record<string, string> = {};
   if (!EMAILS.test(value.applicationsEmail)) errors.applicationsEmail = "Enter one or more email addresses, separated by commas.";
   if (!EMAILS.test(value.enquiriesEmail)) errors.enquiriesEmail = "Enter one or more email addresses, separated by commas.";
   if (!(RETENTION_CHOICES as readonly number[]).includes(value.auditRetentionDays)) errors.auditRetentionDays = "Choose one of the listed periods.";
   if (Object.keys(errors).length) return { errors };
+  // Don't let a Super Admin lock themselves out: they must have two-step sign-in on before requiring it.
+  if (value.requireMfaForSuperAdmins && !me.mfaEnabled) return { error: "Turn on two-step sign-in for your own account first (Account menu → Two-step sign-in), then require it for every Super Admin." };
   const before = await getSettings();
   await saveSettings(value);
   const changed = (Object.keys(value) as (keyof Settings)[]).filter((k) => before[k] !== value[k]);

@@ -77,6 +77,7 @@ export function validateApplication(input: Record<string, unknown>, file?: { siz
     position: str(input.position),
     experience: str(input.experience),
     message: str(input.message),
+    consent: input.consent === "yes" || input.consent === "on" || input.consent === true,
   };
   const errors: Errors = {};
   if (data.fullName.length < 2) errors.fullName = "Please enter your full name.";
@@ -90,6 +91,7 @@ export function validateApplication(input: Record<string, unknown>, file?: { siz
   if (!file || file.size === 0) errors.resume = "Please attach your resume.";
   else if (file.size > RESUME_MAX_BYTES) errors.resume = "Resume must be 4 MB or smaller.";
   else if (!RESUME_TYPES[file.type] && !/\.(pdf|docx?)$/i.test(file.name)) errors.resume = "Please upload a PDF or Word document.";
+  if (!data.consent) errors.consent = "Please confirm you agree to us processing your details.";
   return { data, errors };
 }
 

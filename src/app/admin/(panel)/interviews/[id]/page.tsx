@@ -12,6 +12,7 @@ import { ApplicationStatusBadge, Badge, PageHeader, Panel, formatDateTime } from
 import { InterviewStatusBadge, ist } from "@/components/admin/interview-ui";
 import { interviewStatusAction } from "../../../actions/interviews";
 import { FeedbackForm } from "./FeedbackForm";
+import { maskEmail, maskPhone } from "@/lib/mask";
 
 export const metadata: Metadata = { title: "Interview" };
 
@@ -122,8 +123,8 @@ export default async function InterviewPage({ params }: { params: Promise<{ id: 
               <div>
                 <dt className="text-muted">Candidate contact</dt>
                 <dd className="mt-0.5 break-all font-medium">
-                  {i.candidate_email}
-                  {i.candidate_phone ? ` · ${i.candidate_phone}` : ""}
+                  {can(me.role, "candidates.contact") ? i.candidate_email : maskEmail(i.candidate_email)}
+                  {i.candidate_phone ? ` · ${can(me.role, "candidates.contact") ? i.candidate_phone : maskPhone(i.candidate_phone)}` : ""}
                 </dd>
               </div>
               {i.notes && (

@@ -39,12 +39,14 @@ export type Candidate = {
   summary: string;
   created_at: string;
   updated_at: string;
+  /** Goes up by one each time a profile field changes; the edit form sends it back. */
+  version: number;
 };
 
 const COLS = `c.id, c.email, c.full_name, c.phone, c.location, c.preferred_location, c.specialisation, c.experience, c.employment_type,
   c.tags, c.skills, c.qualifications, c.experience_years::float8 AS experience_years, c.current_title, c.current_company, c.notice_period,
   c.priority, c.owner_id, ow.name AS owner_name, to_char(c.follow_up_on, 'YYYY-MM-DD') AS follow_up_on, c.availability,
-  c.last_contacted_at, c.linkedin_url, c.summary, c.created_at, c.updated_at`;
+  c.last_contacted_at, c.linkedin_url, c.summary, c.created_at, c.updated_at, c.version`;
 
 export type TimelineEntry = {
   id: string;
@@ -207,41 +209,67 @@ const LABELS: Record<keyof CandidateInput, string> = {
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
 /** Saves the profile and records which fields changed (old and new values) on the timeline. */
-export async function updateCandidate(id: string, input: CandidateInput, userId: string) {
+export type UpdateResult = { changed: string[]; conflict?: undefined } | { conflict: { by: string | null; at: string | null }; changed?: undefined };
+
+/**
+ * Saves the profile form. `expectedVersion` is the version the form was
+ * opened at: if someone else saved the profile since, nothing is written and
+ * the caller is told who changed it, instead of the last save silently winning.
+ */
+export async function updateCandidate(id: string, input: CandidateInput, userId: string, { expectedVersion }: { expectedVersion?: number | null } = {}): Promise<UpdateResult | null> {
   const conn = await db();
   const [before] = await conn.query<Candidate>(`SELECT ${COLS} FROM candidates c LEFT JOIN admin_users ow ON ow.id = c.owner_id WHERE c.id = $1`, [id]);
   if (!before) return null;
+  const expected = expectedVersion != null && Number.isInteger(expectedVersion) ? expectedVersion : null;
+  const conflict = async () => {
+    const [last] = await conn.query<{ by: string | null; at: string }>(
+      `SELECT u.name AS by, e.created_at AS at FROM application_events e LEFT JOIN admin_users u ON u.id = e.user_id
+        WHERE e.candidate_id = $1 AND e.kind = 'edit' ORDER BY e.created_at DESC LIMIT 1`,
+      [id],
+    );
+    return { conflict: { by: last?.by ?? null, at: last?.at ?? null } };
+  };
+  if (expected !== null && Number(before.version) !== expected) return conflict();
   const changes: Record<string, [unknown, unknown]> = {};
   for (const k of Object.keys(LABELS) as (keyof CandidateInput)[]) {
     if (!same(before[k], input[k])) changes[LABELS[k]] = [before[k], input[k]];
   }
   if (!Object.keys(changes).length) return { changed: [] as string[] };
-  await conn.tx([
-    {
-      text: `UPDATE candidates SET full_name=$2, phone=$3, location=$4, preferred_location=$5, specialisation=$6, current_title=$7, current_company=$8,
-               experience_years=$9, notice_period=$10, availability=$11, qualifications=$12, skills=$13, tags=$14, linkedin_url=$15, summary=$16, updated_at=now()
-             WHERE id = $1`,
-      params: [
-        id,
-        input.full_name,
-        input.phone,
-        input.location,
-        input.preferred_location,
-        input.specialisation,
-        input.current_title,
-        input.current_company,
-        input.experience_years,
-        input.notice_period,
-        input.availability,
-        input.qualifications,
-        input.skills,
-        input.tags,
-        input.linkedin_url,
-        input.summary,
-      ],
-    },
-    editEvent(id, userId, Object.keys(changes).join(", "), { changes }),
-  ]);
+  // One statement: the edit event is only written if the update matched the version read above.
+  const saved = await conn.query<{ ok: number }>(
+    `WITH u AS (
+       UPDATE candidates SET full_name=$2, phone=$3, location=$4, preferred_location=$5, specialisation=$6, current_title=$7, current_company=$8,
+              experience_years=$9, notice_period=$10, availability=$11, qualifications=$12, skills=$13, tags=$14, linkedin_url=$15, summary=$16, updated_at=now()
+        WHERE id = $1 AND version = $17
+        RETURNING id
+     )
+     INSERT INTO application_events (candidate_id, user_id, kind, body, details)
+     SELECT u.id, $18, 'edit', $19, $20::jsonb FROM u
+     RETURNING 1 AS ok`,
+    [
+      id,
+      input.full_name,
+      input.phone,
+      input.location,
+      input.preferred_location,
+      input.specialisation,
+      input.current_title,
+      input.current_company,
+      input.experience_years,
+      input.notice_period,
+      input.availability,
+      input.qualifications,
+      input.skills,
+      input.tags,
+      input.linkedin_url,
+      input.summary,
+      Number(before.version),
+      userId,
+      Object.keys(changes).join(", ").slice(0, 500),
+      JSON.stringify({ changes }),
+    ],
+  );
+  if (!saved.length) return conflict();
   return { changed: Object.keys(changes) };
 }
 
@@ -490,4 +518,52 @@ export async function dueFollowUps(ownerId?: string, limit = 20) {
       ORDER BY c.follow_up_on, c.full_name LIMIT ${limit}`,
     [today, isUuid(ownerId) ? ownerId : null],
   );
+}
+
+/**
+ * Everything held about one candidate, for an access request (M-19): the
+ * profile, each application with what was submitted and its timeline, emails
+ * sent to them, interviews with feedback, uploaded files (names and extracted
+ * text; the files themselves are downloaded separately) and pool memberships.
+ * The client behind an opening is confidential and is left out; the public
+ * employer label is given instead.
+ */
+export async function exportCandidateData(id: string) {
+  if (!isUuid(id)) return null;
+  const conn = await db();
+  const [profile] = await conn.query<Record<string, unknown>>(
+    `SELECT c.email, c.full_name, c.phone, c.location, c.preferred_location, c.specialisation, c.experience, c.employment_type, c.tags, c.skills,
+            c.qualifications, c.experience_years::float8 AS experience_years, c.current_title, c.current_company, c.notice_period, c.availability,
+            c.linkedin_url, c.summary, c.priority, to_char(c.follow_up_on, 'YYYY-MM-DD') AS follow_up_on, c.last_contacted_at, c.created_at, c.updated_at,
+            ow.name AS owner
+       FROM candidates c LEFT JOIN admin_users ow ON ow.id = c.owner_id WHERE c.id = $1`,
+    [id],
+  );
+  if (!profile) return null;
+  const [applications, timeline, emails, interviews, files, pools] = await Promise.all([
+    conn.query(
+      `SELECT a.number::text AS number, a.source, a.position, a.experience, a.message, a.details, a.status, a.submitted_at, a.stage_changed_at, a.hired_at,
+              o.title AS opening_title, o.public_client_label AS employer, a.resume_name, a.resume_size, a.resume_text, ru.name AS assigned_to
+         FROM applications a LEFT JOIN job_openings o ON o.id = a.opening_id LEFT JOIN admin_users ru ON ru.id = a.assigned_to
+        WHERE a.candidate_id = $1 ORDER BY a.submitted_at`,
+      [id],
+    ),
+    conn.query(
+      `SELECT e.created_at, e.kind, e.body, e.from_status, e.to_status, e.details, u.name AS by, a.number::text AS application_number
+         FROM application_events e LEFT JOIN admin_users u ON u.id = e.user_id LEFT JOIN applications a ON a.id = e.application_id
+        WHERE e.candidate_id = $1 ORDER BY e.created_at`,
+      [id],
+    ),
+    conn.query(`SELECT m.created_at, m.to_email, m.subject, m.body, m.status, u.name AS sent_by FROM email_messages m LEFT JOIN admin_users u ON u.id = m.sent_by WHERE m.candidate_id = $1 ORDER BY m.created_at`, [id]),
+    conn.query(
+      `SELECT i.round, i.scheduled_at, i.duration_minutes, i.mode, i.status, i.notes, i.cancel_reason, a.number::text AS application_number,
+              COALESCE((SELECT jsonb_agg(jsonb_build_object('by', u.name, 'rating', f.rating, 'recommendation', f.recommendation, 'notes', f.notes, 'at', f.created_at) ORDER BY f.created_at)
+                          FROM interview_feedback f LEFT JOIN admin_users u ON u.id = f.user_id WHERE f.interview_id = i.id), '[]'::jsonb) AS feedback
+         FROM interviews i JOIN applications a ON a.id = i.application_id WHERE a.candidate_id = $1 ORDER BY i.scheduled_at`,
+      [id],
+    ),
+    conn.query(`SELECT f.file_name, f.file_size, f.file_type, f.text_content, f.created_at, u.name AS uploaded_by FROM candidate_files f LEFT JOIN admin_users u ON u.id = f.uploaded_by WHERE f.candidate_id = $1 ORDER BY f.created_at`, [id]),
+    conn.query(`SELECT p.name AS pool, m.added_at FROM talent_pool_members m JOIN talent_pools p ON p.id = m.pool_id WHERE m.candidate_id = $1 ORDER BY m.added_at`, [id]),
+  ]);
+  return { exportedAt: new Date().toISOString(), profile, applications, timeline, emails, interviews, files, talentPools: pools };
 }

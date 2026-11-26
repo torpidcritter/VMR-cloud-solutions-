@@ -45,6 +45,18 @@ export function SettingsForm({ settings }: { settings: Settings }) {
             </label>
           </section>
           <section className="card grid gap-3 p-5">
+            <h2 className="text-sm font-semibold">Sign-in security</h2>
+            <label className="flex items-start gap-2 text-sm">
+              <input type="checkbox" name="requireMfaForSuperAdmins" defaultChecked={settings.requireMfaForSuperAdmins} className="mt-0.5 size-4" />
+              <span>
+                Require two-step sign-in for Super Admins
+                <span className="block text-xs text-muted">
+                  Super Admins without an authenticator app set up are asked to set one up before they can use the panel. Anyone can turn it on for their own account from the account menu.
+                </span>
+              </span>
+            </label>
+          </section>
+          <section className="card grid gap-3 p-5">
             <h2 className="text-sm font-semibold">Audit log</h2>
             <div className="max-w-xs">
               <label htmlFor="auditRetentionDays" className="a-label">

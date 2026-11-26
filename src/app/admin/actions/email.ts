@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { assertAdmin } from "@/lib/auth/session";
 import { getCandidate } from "@/lib/data/candidates";
-import { deleteTemplate, parseTemplate, recentSends, recordEmail, saveTemplate } from "@/lib/data/email";
+import { claimEmail, deleteTemplate, finishEmail, parseTemplate, recentSends, saveTemplate } from "@/lib/data/email";
+import { randomUUID } from "node:crypto";
 import { bodyToHtml, cleanSubject, unfilledFields } from "@/lib/email-templates";
 import { isMailConfigured, sendMail } from "@/lib/mailer";
 import { logActivity } from "@/lib/data/activity";
@@ -44,16 +45,20 @@ export async function sendCandidateEmailAction(_: ActionState, form: FormData): 
   if ((await recentSends(me.id)) >= SEND_LIMIT) return { error: `You've sent ${SEND_LIMIT} emails in the last hour. Please wait a little before sending more.` };
 
   const base = { candidateId: c.id, applicationId: applicationId || null, templateId, to: c.email, subject, body, userId: me.id };
+  // The compose form sends one key per message; without one, this request can't be matched to an earlier one.
+  const sendKey = s(form.get("sendKey"), 40);
+  const messageId = await claimEmail({ ...base, key: `${me.id}:${UUID.test(sendKey) ? sendKey.toLowerCase() : randomUUID()}` });
+  if (!messageId) return { ok: true, message: "This email was already sent (or is being sent). It wasn't sent again." };
   try {
     await sendMail({ to: c.email, replyTo: me.email, subject, text: body, html: bodyToHtml(body) });
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
     console.error("[email] send to candidate failed", detail);
-    await recordEmail({ ...base, status: "failed", error: detail });
+    await finishEmail(messageId, base, { status: "failed", error: detail });
     revalidatePath(`/admin/candidates/${c.id}`);
     return { error: "The mail server didn't accept the email, so it wasn't sent. Your text is kept below; try again in a few minutes." };
   }
-  await recordEmail({ ...base, status: "sent" });
+  await finishEmail(messageId, base, { status: "sent" });
   await logActivity(me.id, "email", "candidate", c.id, `Emailed ${c.full_name}: ${subject}`);
   revalidatePath(`/admin/candidates/${c.id}`);
   if (applicationId) revalidatePath(`/admin/applications/${applicationId}`);

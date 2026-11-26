@@ -1,5 +1,6 @@
 "use client";
 
+import { resetUserMfaAction } from "../../../actions/security";
 import { ActionForm, FieldError, SubmitButton } from "@/components/admin/forms";
 import { ROLE_LABELS, ROLES } from "@/lib/auth/permissions";
 import { resetPasswordAction, updateUserAction } from "../../../actions/users";
@@ -50,6 +51,17 @@ export function ResetPasswordForm({ id }: { id: string }) {
       <input type="hidden" name="id" value={id} />
       <SubmitButton className="a-btn" pendingLabel="Resetting…">
         Reset password
+      </SubmitButton>
+    </ActionForm>
+  );
+}
+
+export function ResetMfaForm({ id, name }: { id: string; name: string }) {
+  return (
+    <ActionForm action={resetUserMfaAction}>
+      <input type="hidden" name="id" value={id} />
+      <SubmitButton className="a-btn" pendingLabel="Switching off…">
+        Switch off two-step sign-in for {name}
       </SubmitButton>
     </ActionForm>
   );

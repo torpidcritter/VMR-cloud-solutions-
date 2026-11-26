@@ -187,6 +187,34 @@ export function CareerForm({ opening }: { opening?: { id: string; title: string 
         />
       </Field>
 
+      <div className="sm:col-span-2">
+        <label className={`flex cursor-pointer gap-3 rounded-xl border p-4 text-sm leading-relaxed text-ink-soft ${errors.consent ? "border-accent-600" : "border-line"}`}>
+          <input
+            type="checkbox"
+            name="consent"
+            value="yes"
+            className="mt-0.5 size-[1.1rem] shrink-0 accent-[var(--color-btn)]"
+            aria-invalid={!!errors.consent}
+            aria-describedby={errors.consent ? "c-consent-error" : undefined}
+            required
+          />
+          <span>
+            I consent to {site.legalName} storing and processing my personal information and resume to assess my suitability for this and similar roles and to contact me about them, in line
+            with applicable data protection law and the{" "}
+            <a href="/privacy-policy#candidates" className="font-semibold text-brand-700 underline underline-offset-2">
+              Privacy Policy
+            </a>
+            . I can withdraw consent and ask for my data to be deleted at any time.
+            <span aria-hidden className="ml-0.5 text-accent-600">*</span>
+          </span>
+        </label>
+        {errors.consent && (
+          <p id="c-consent-error" className="field-error" role="alert">
+            {errors.consent}
+          </p>
+        )}
+      </div>
+
       {serverError && (
         <div role="alert" className="rounded-xl border border-accent-500/30 bg-accent-500/5 p-4 text-sm text-ink-soft sm:col-span-2">
           {serverError} You can also email your resume to{" "}

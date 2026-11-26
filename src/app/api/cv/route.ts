@@ -44,7 +44,7 @@ export async function POST(req: Request) {
 
   // Bots get a quiet "success" so they don't retry; nothing is stored.
   if (looksLikeBot(fields.website, fields.startedAt)) return json({ ok: true });
-  if (rateLimited(clientIp(req.headers))) {
+  if (await rateLimited(clientIp(req.headers))) {
     return json({ ok: false, error: "Too many submissions. Please try again in a few minutes." }, 429);
   }
 

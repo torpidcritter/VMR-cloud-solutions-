@@ -11,6 +11,8 @@ import { APPLICATION_STATUSES, APPLICATION_STATUS_LABELS, AVAILABILITY_OPTIONS, 
 import { ApplicationStatusBadge, EmptyState, PageHeader, Pagination, formatDate, withParams } from "@/components/admin/ui";
 import { PriorityBadge, TagList } from "@/components/admin/candidate-ui";
 
+import { maskEmail, maskPhone } from "@/lib/mask";
+
 export const metadata: Metadata = { title: "Candidates" };
 
 const PAGE_SIZE = 25;
@@ -26,6 +28,8 @@ export default async function CandidatesPage({ searchParams }: { searchParams: P
   const page = Math.max(1, Number(one(sp.page)) || 1);
   const [{ rows, total }, facets, recruiters, pools] = await Promise.all([listCandidates(f, { page, pageSize: PAGE_SIZE, sort }), candidateFacets(), recruiterOptions(), listPools()]);
   const canPool = can(me.role, "talent.manage");
+  // Viewer and Sales see masked contact details (M-12).
+  const contact = can(me.role, "candidates.contact");
   const filtered = Object.values(search).some(Boolean);
   const today = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
   const current = { ...search, sort: sort === "updated" ? undefined : sort };
@@ -170,8 +174,8 @@ export default async function CandidatesPage({ searchParams }: { searchParams: P
                           <PriorityBadge priority={c.priority} />
                         </span>
                       )}
-                      <div className="text-xs text-muted">{c.email}</div>
-                      <div className="text-xs text-muted">{[c.phone, c.location].filter(Boolean).join(" · ")}</div>
+                      <div className="text-xs text-muted">{contact ? c.email : maskEmail(c.email)}</div>
+                      <div className="text-xs text-muted">{[contact ? c.phone : maskPhone(c.phone), c.location].filter(Boolean).join(" · ")}</div>
                       <div className="text-xs text-muted">{c.last_contacted_at ? `Contacted ${formatDate(c.last_contacted_at)}` : "Not contacted yet"}</div>
                     </td>
                     <td className="min-w-40">

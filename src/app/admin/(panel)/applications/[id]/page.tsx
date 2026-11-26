@@ -16,6 +16,7 @@ import { InterviewForm } from "@/components/admin/InterviewForm";
 import { InterviewList } from "@/components/admin/interview-ui";
 import { istToday } from "@/lib/data/constants";
 import { NoteForm } from "./NoteForm";
+import { maskEmail, maskPhone } from "@/lib/mask";
 
 export const metadata: Metadata = { title: "Application" };
 
@@ -27,6 +28,13 @@ export default async function ApplicationPage({ params, searchParams }: { params
   const sp = await searchParams;
   const superAdmin = me.role === "super_admin";
   if (!a) notFound();
+  // Viewer and Sales don't contact candidates: they see masked details (M-12).
+  const contact = can(me.role, "candidates.contact");
+  if (!contact) {
+    a.email = maskEmail(a.email);
+    a.phone = maskPhone(a.phone);
+    if (a.details?.submittedPhone) a.details = { ...a.details, submittedPhone: maskPhone(String(a.details.submittedPhone)) };
+  }
   const showClient = can(me.role, "openings.viewClient");
   const editable = can(me.role, "applications.update");
   const isPdf = a.resume_path?.endsWith(".pdf");
@@ -75,10 +83,12 @@ export default async function ApplicationPage({ params, searchParams }: { params
             <Link href={`/admin/candidates/${a.candidate_id}`} className="a-btn">
               <UserRound aria-hidden className="size-4" /> Candidate profile
             </Link>
-            <a href={`mailto:${a.email}`} className="a-btn">
-              <Mail aria-hidden className="size-4" /> Email
-            </a>
-            {a.phone && (
+            {contact && (
+              <a href={`mailto:${a.email}`} className="a-btn">
+                <Mail aria-hidden className="size-4" /> Email
+              </a>
+            )}
+            {contact && a.phone && (
               <a href={`tel:${a.phone.replace(/[^\d+]/g, "")}`} className="a-btn">
                 <Phone aria-hidden className="size-4" /> Call
               </a>
@@ -174,7 +184,7 @@ export default async function ApplicationPage({ params, searchParams }: { params
                       <Badge tone={eventTone(e.kind)}>{EVENT_KIND_LABELS[e.kind] ?? e.kind}</Badge>
                       {e.user_name ?? "System"} · {formatDateTime(e.created_at)}
                     </p>
-                    <EventText e={e} />
+                    <EventText e={e} hideContact={!contact} />
                   </li>
                 ))}
               </ol>

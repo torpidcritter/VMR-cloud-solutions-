@@ -8,9 +8,9 @@ import { LoginForm } from "./LoginForm";
 
 export const metadata: Metadata = { title: "Sign in" };
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; expired?: string }> }) {
   if (await currentAdmin()) redirect("/admin");
-  const { next } = await searchParams;
+  const { next, expired } = await searchParams;
   const none = (await countAdmins()) === 0;
   return (
     <AuthShell title="Sign in" subtitle="Use the email and password your administrator gave you.">
@@ -23,6 +23,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           .
         </p>
       )}
+      {expired && <p className="mb-5 rounded-lg bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">Your sign-in timed out or had too many wrong codes. Please start again.</p>}
       <LoginForm next={typeof next === "string" ? next : ""} />
     </AuthShell>
   );

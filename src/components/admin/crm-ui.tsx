@@ -7,6 +7,7 @@ import { CLIENT_STATUSES, CLIENT_STATUS_LABELS } from "@/lib/data/constants";
 import { MERGE_FIELDS, renderTemplate, unfilledFields, type MergeValues } from "@/lib/email-templates";
 import { addContactAction, addRequirementAction, clientNoteAction, saveClientAction } from "@/app/admin/actions/clients";
 import { saveTemplateAction, sendCandidateEmailAction } from "@/app/admin/actions/email";
+import { newSubmissionId } from "@/lib/forms";
 
 type Field = React.InputHTMLAttributes<HTMLInputElement>;
 
@@ -192,6 +193,8 @@ export function EmailComposer({
   const [applicationId, setApplicationId] = useState(applications[0]?.id ?? "");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
+  // One key per message: a double click or retry of the same message sends it once (M-18).
+  const [sendKey, setSendKey] = useState(() => newSubmissionId());
   const values = useMemo(() => applications.find((a) => a.id === applicationId)?.values ?? base, [applications, applicationId, base]);
 
   const apply = (tid: string, v: MergeValues) => {
@@ -207,6 +210,7 @@ export function EmailComposer({
       setTemplateId("");
       setSubject("");
       setBody("");
+      setSendKey(newSubmissionId());
     }
     return res;
   }, []);
@@ -220,6 +224,7 @@ export function EmailComposer({
         <>
           <input type="hidden" name="candidateId" value={candidateId} />
           <input type="hidden" name="templateId" value={templateId} />
+          <input type="hidden" name="sendKey" value={sendKey} />
           <p className="text-sm">
             <span className="text-muted">To:</span> <span className="break-all font-medium">{to}</span>
           </p>

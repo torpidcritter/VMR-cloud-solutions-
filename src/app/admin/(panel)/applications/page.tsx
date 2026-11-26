@@ -9,6 +9,8 @@ import { ApplicationStatusBadge, Badge, EmptyState, Notice, PageHeader, Paginati
 import { applicationFilters } from "../../filters";
 import { BulkApplications, BulkPageCheck, BulkRowCheck, type BulkPerms } from "@/components/admin/bulk-applications";
 
+import { maskEmail, maskPhone } from "@/lib/mask";
+
 export const metadata: Metadata = { title: "Applications" };
 
 const PAGE_SIZE = 25;
@@ -24,6 +26,8 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
     showClient ? clientNames() : Promise.resolve([] as string[]),
     recruiterOptions(),
   ]);
+  // Viewer and Sales see masked contact details (M-12).
+  const contact = can(me.role, "candidates.contact");
   const current = { ...search } as Record<string, string | undefined>;
   const url = (changes: Record<string, string | undefined>) => withParams("/admin/applications", current, { page: undefined, ...changes });
   const exportQuery = new URLSearchParams(Object.entries(current).filter(([, v]) => v) as [string, string][]).toString();
@@ -220,8 +224,8 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
                           <Badge tone="violet">Applied {a.candidate_applications}×</Badge>
                         </span>
                       )}
-                      <div className="text-xs text-muted">{a.email}</div>
-                      <div className="text-xs text-muted">{a.phone}</div>
+                      <div className="text-xs text-muted">{contact ? a.email : maskEmail(a.email)}</div>
+                      <div className="text-xs text-muted">{contact ? a.phone : maskPhone(a.phone)}</div>
                     </td>
                     <td className="min-w-48">
                       {a.position}

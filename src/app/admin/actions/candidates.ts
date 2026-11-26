@@ -18,8 +18,14 @@ export async function saveCandidateAction(_: ActionState, form: FormData): Promi
   const raw = Object.fromEntries(Array.from(form.entries()).filter(([, v]) => typeof v === "string"));
   const { data, errors } = parseCandidate(raw);
   if (Object.keys(errors).length) return { errors, error: "Please fix the highlighted fields." };
-  const res = await updateCandidate(id, data, me.id);
+  const v = s(form.get("version"), 12);
+  const res = await updateCandidate(id, data, me.id, { expectedVersion: /^\d+$/.test(v) ? Number(v) : null });
   if (!res) return { error: "This candidate no longer exists." };
+  if (res.conflict) {
+    const who = res.conflict.by ? `${res.conflict.by} saved` : "Someone else saved";
+    const when = res.conflict.at ? ` at ${new Date(res.conflict.at).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit" })}` : "";
+    return { error: `${who} changes to this profile${when}, after you opened it, so nothing was saved. Copy anything you need, then reload the page to see their version and edit again.` };
+  }
   if (res.changed.length) await logActivity(me.id, "update", "candidate", id, `Updated ${data.full_name}: ${res.changed.join(", ")}`);
   revalidatePath(`/admin/candidates/${id}`);
   return { ok: true, message: res.changed.length ? "Profile saved." : "No changes to save." };

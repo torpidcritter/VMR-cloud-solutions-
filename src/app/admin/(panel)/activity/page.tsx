@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "Activity" };
 
 const PAGE_SIZE = 50;
 const TONE: Record<string, Tone> = { create: "green", update: "blue", status: "violet", delete: "red", export: "amber", download: "cyan", note: "grey", signin: "grey", assign: "cyan", merge: "amber", view: "grey", email: "blue" };
-const OUTCOME_TONE: Record<LoginOutcome, Tone> = { success: "green", signout: "grey", bad_password: "amber", unknown: "amber", locked: "red", inactive: "red", rate_limited: "red" };
+const OUTCOME_TONE: Record<LoginOutcome, Tone> = { success: "green", signout: "grey", bad_password: "amber", mfa_failed: "amber", unknown: "amber", locked: "red", inactive: "red", rate_limited: "red" };
 const ENTITY_LABEL: Record<string, string> = {
   application: "Applications",
   candidate: "Candidates",

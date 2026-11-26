@@ -14,6 +14,7 @@ export type AdminUserRow = {
   locked_until: string | null;
   last_login_at: string | null;
   created_at: string;
+  totp_enabled_at?: string | null;
 };
 
 export async function countAdmins() {
@@ -32,7 +33,7 @@ export async function listAdmins() {
 export async function getAdmin(id: string) {
   const conn = await db();
   const [row] = await conn.query<AdminUserRow>(
-    `SELECT id, email, name, role, active, must_change_password, locked_until, last_login_at, created_at FROM admin_users WHERE id = $1`,
+    `SELECT id, email, name, role, active, must_change_password, locked_until, last_login_at, created_at, totp_enabled_at FROM admin_users WHERE id = $1`,
     [id],
   );
   return row ?? null;

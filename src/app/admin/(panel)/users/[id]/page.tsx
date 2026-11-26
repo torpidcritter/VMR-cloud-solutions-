@@ -7,7 +7,7 @@ import { getTarget, currentMonth } from "@/lib/data/workspace";
 import { Badge, PageHeader, Panel, formatDateTime } from "@/components/admin/ui";
 import { can } from "@/lib/auth/permissions";
 import { LOGIN_OUTCOME_LABELS, listLogins } from "@/lib/data/audit";
-import { ResetPasswordForm, TargetForm, UserForm } from "./UserForms";
+import { ResetMfaForm, ResetPasswordForm, TargetForm, UserForm } from "./UserForms";
 
 export const metadata: Metadata = { title: "Edit user" };
 
@@ -40,6 +40,18 @@ export default async function UserPage({ params }: { params: Promise<{ id: strin
         <Panel title="Password">
           <p className="mb-3 text-sm text-muted">Creates a new temporary password, signs them out everywhere and unlocks the account.</p>
           <ResetPasswordForm id={u.id} />
+        </Panel>
+        <Panel title="Two-step sign-in">
+          {u.totp_enabled_at ? (
+            <>
+              <p className="mb-3 text-sm text-muted">
+                On since {formatDateTime(u.totp_enabled_at)}. If they lost their phone and recovery codes, switch it off; they&rsquo;re signed out everywhere and can set it up again.
+              </p>
+              {u.id === me.id ? <p className="text-sm text-muted">This is your account: manage it from the account menu.</p> : <ResetMfaForm id={u.id} name={u.name} />}
+            </>
+          ) : (
+            <p className="text-sm text-muted">Off. They can turn it on from the account menu after signing in.</p>
+          )}
         </Panel>
         {audit && (
           <Panel

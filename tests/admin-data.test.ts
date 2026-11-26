@@ -52,7 +52,7 @@ describe("schema", () => {
   it("applies migrations once and records the version", async () => {
     const conn = await db();
     const rows = await conn.query<{ version: number }>(`SELECT version FROM schema_migrations ORDER BY version`);
-    expect(rows.map((r) => Number(r.version))).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(rows.map((r) => Number(r.version))).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
   });
 });
 

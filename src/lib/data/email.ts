@@ -142,7 +142,7 @@ export type EmailMessage = {
   to_email: string;
   subject: string;
   body: string;
-  status: "sent" | "failed";
+  status: "sending" | "sent" | "failed";
   sent_by_name: string | null;
   created_at: string;
 };
@@ -188,6 +188,40 @@ export async function recordEmail(m: {
       : []),
   ]);
   return id;
+}
+
+/**
+ * One send per compose form (M-18). The message is recorded as "sending"
+ * under the form's key before the mail server is called; a second request
+ * with the same key (a double click, a retry after a slow response) finds
+ * the claim and sends nothing. Returns null when the key was already used.
+ */
+export async function claimEmail(m: { candidateId: string; applicationId: string | null; templateId: string | null; to: string; subject: string; body: string; userId: string; key: string }) {
+  const conn = await db();
+  const [row] = await conn.query<{ id: string }>(
+    `INSERT INTO email_messages (candidate_id, application_id, template_id, to_email, subject, body, status, sent_by, send_key)
+     VALUES ($1, $2, (SELECT id FROM email_templates WHERE id = $3::uuid), $4, $5, $6, 'sending', $7, $8)
+     ON CONFLICT (send_key) DO NOTHING RETURNING id`,
+    [m.candidateId, m.applicationId, m.templateId, m.to, m.subject, m.body, m.userId, m.key],
+  );
+  return row?.id ?? null;
+}
+
+/** Marks a claimed message sent (with its timeline entry) or failed; a failed one frees its key so the same form can try again. */
+export async function finishEmail(id: string, m: { candidateId: string; applicationId: string | null; subject: string; userId: string }, outcome: { status: "sent" } | { status: "failed"; error: string }) {
+  const conn = await db();
+  if (outcome.status === "failed") {
+    await conn.query(`UPDATE email_messages SET status = 'failed', error = $2, send_key = NULL WHERE id = $1`, [id, outcome.error.slice(0, 500)]);
+    return;
+  }
+  await conn.tx([
+    { text: `UPDATE email_messages SET status = 'sent' WHERE id = $1`, params: [id] },
+    {
+      text: `INSERT INTO application_events (candidate_id, application_id, user_id, kind, body, details) VALUES ($1, $2, $3, 'email', $4, $5::jsonb)`,
+      params: [m.candidateId, m.applicationId, m.userId, `Emailed: ${m.subject}`.slice(0, 300), JSON.stringify({ email_id: id })],
+    },
+    { text: `UPDATE candidates SET last_contacted_at = now(), updated_at = now() WHERE id = $1`, params: [m.candidateId] },
+  ]);
 }
 
 export async function listEmails(candidateId: string, limit = 50) {

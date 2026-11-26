@@ -21,6 +21,7 @@ import { InterviewList } from "@/components/admin/interview-ui";
 import { APPLICATION_SOURCE_LABELS, CANDIDATE_PRIORITIES, CANDIDATE_PRIORITY_LABELS } from "@/lib/data/constants";
 import { ConfirmButton, SubmitButton } from "@/components/admin/forms";
 import { ApplicationStatusBadge, Badge, Notice, PageHeader, Panel, formatDate, formatDateTime } from "@/components/admin/ui";
+import { maskEmail, maskPhone } from "@/lib/mask";
 import { EVENT_KIND_LABELS, EventText, PriorityBadge, TagList, eventTone } from "@/components/admin/candidate-ui";
 import { mergeCandidatesAction, quickCandidateAction } from "../../../actions/candidates";
 import { deleteCandidateFileAction, removeFromPoolAction } from "../../../actions/talent";
@@ -45,6 +46,12 @@ export default async function CandidatePage({
   const c = await getCandidate(id);
   if (!c) notFound();
   await logView(me.id, "candidate", c.id, `Viewed the profile of ${c.full_name}`);
+  // Viewer and Sales don't contact candidates: they see masked details (M-12).
+  const contact = can(me.role, "candidates.contact");
+  if (!contact) {
+    c.email = maskEmail(c.email);
+    c.phone = maskPhone(c.phone);
+  }
   const editable = can(me.role, "candidates.edit");
   const canMerge = can(me.role, "candidates.merge");
   const canDownload = can(me.role, "resumes.download");
@@ -112,16 +119,21 @@ export default async function CandidatePage({
                 <History aria-hidden className="size-4" /> Audit trail
               </Link>
             )}
+            {can(me.role, "candidates.export") && (
+              <a href={`/admin/api/candidate-export/${c.id}`} className="a-btn" title="Everything held about this candidate, as a file, for a data access request">
+                <Download aria-hidden className="size-4" /> Export data
+              </a>
+            )}
             {canEmail && mailReady ? (
               <Link href={`${base}?compose=1#emails`} className="a-btn">
                 <Mail aria-hidden className="size-4" /> Email
               </Link>
-            ) : (
+            ) : contact ? (
               <a href={`mailto:${c.email}`} className="a-btn">
                 <Mail aria-hidden className="size-4" /> Email
               </a>
-            )}
-            {c.phone && (
+            ) : null}
+            {contact && c.phone && (
               <a href={`tel:${c.phone.replace(/[^\d+]/g, "")}`} className="a-btn">
                 <Phone aria-hidden className="size-4" /> Call
               </a>
@@ -200,6 +212,7 @@ export default async function CandidatePage({
               <ProfileForm
                 values={{
                   id: c.id,
+                  version: String(c.version),
                   full_name: c.full_name,
                   phone: c.phone,
                   location: c.location,
@@ -349,6 +362,7 @@ export default async function CandidatePage({
                       <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-2 gap-y-1 [&::-webkit-details-marker]:hidden">
                         <span className="min-w-0 flex-1 font-medium">{m.subject}</span>
                         {m.status === "failed" && <Badge tone="red">Not sent</Badge>}
+                        {m.status === "sending" && <Badge tone="amber">Sending</Badge>}
                         <span className="text-xs text-muted">
                           {m.sent_by_name ?? "System"} · {formatDateTime(m.created_at)}
                         </span>
@@ -401,7 +415,7 @@ export default async function CandidatePage({
                         </Link>
                       )}
                     </p>
-                    <EventText e={e} />
+                    <EventText e={e} hideContact={!contact} />
                   </li>
                 ))}
               </ol>

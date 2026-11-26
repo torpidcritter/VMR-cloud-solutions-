@@ -6,6 +6,7 @@ import { saveCandidateAction } from "../../../actions/candidates";
 
 export type ProfileValues = {
   id: string;
+  version: string;
   full_name: string;
   phone: string;
   location: string;
@@ -49,6 +50,7 @@ export function ProfileForm({ values }: { values: ProfileValues }) {
         return (
           <>
             <input type="hidden" name="id" value={values.id} />
+            <input type="hidden" name="version" value={values.version} />
             <div className="grid gap-4 sm:grid-cols-2">
               {input("full_name", "Full name", { required: true, maxLength: 120, autoComplete: "off" })}
               {input("phone", "Phone", { maxLength: 30, inputMode: "tel", autoComplete: "off" })}

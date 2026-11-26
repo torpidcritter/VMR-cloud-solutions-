@@ -90,7 +90,7 @@ Recruitment admin for job openings, applications, the talent bank and enquiries.
 
 **Daily job:** `vercel.json` calls `/api/cron/reminders` once a day. Set `CRON_SECRET` (16+ characters) in Vercel so it can run. It sends interview reminders (needs SMTP), posts task and follow-up reminders, and deletes audit entries older than the retention period set in Settings.
 
-**Security:** scrypt-hashed passwords, httpOnly session cookie (8 hours), lockout after 5 wrong passwords, per-IP limit on sign-in, roles checked on the server for every page, action and download. Client names on openings are never sent to the public site. Resumes stay in private storage and are streamed only to signed-in admins with the right role. Downloads of a selection only accept requests from the admin pages themselves. `/admin` is excluded from search engines.
+**Security:** scrypt-hashed passwords, httpOnly session cookie (8 hours, and 60 minutes without activity), optional two-step sign-in with an authenticator app and recovery codes (Settings can require it for Super Admins), lockout after 5 wrong passwords, a per-IP limit on sign-in and the public forms shared by every server instance (kept in the database, IPs stored hashed), a Content-Security-Policy on every page, contact details masked for Viewer and Sales, roles checked on the server for every page, action and download. Client names on openings are never sent to the public site. Resumes stay in private storage and are streamed only to signed-in admins with the right role. Downloads of a selection only accept requests from the admin pages themselves. `/admin` is excluded from search engines.
 
 | Role | Can do |
 | --- | --- |

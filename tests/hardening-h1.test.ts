@@ -290,6 +290,7 @@ describe("H-03 and H-04 on the job application form", () => {
     message: "",
     startedAt: String(Date.now() - 60_000),
     website: "",
+    consent: "yes",
     ...extra,
   });
   const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";

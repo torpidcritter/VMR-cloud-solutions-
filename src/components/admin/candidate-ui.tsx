@@ -26,7 +26,7 @@ const STATUS_LABEL = (s: string | null) => APPLICATION_STATUS_LABELS[s as keyof 
 const show = (v: unknown) => (v === null || v === undefined || v === "" ? "empty" : Array.isArray(v) ? (v.length ? v.join(", ") : "empty") : v === "now" ? "now" : String(v));
 
 /** One line of a candidate's or application's history, worded for people. */
-export function EventText({ e }: { e: { kind: string; body: string; from_status: string | null; to_status: string | null; details?: Record<string, unknown> | null } }) {
+export function EventText({ e, hideContact = false }: { e: { kind: string; body: string; from_status: string | null; to_status: string | null; details?: Record<string, unknown> | null }; hideContact?: boolean }) {
   switch (e.kind) {
     case "note":
       return <p className="mt-1 whitespace-pre-line">{e.body}</p>;
@@ -47,7 +47,7 @@ export function EventText({ e }: { e: { kind: string; body: string; from_status:
         <ul className="mt-1 grid gap-0.5">
           {keys.map((k) => (
             <li key={k}>
-              <span className="text-muted">{k}:</span> {k === "Summary" || k === "Qualifications" ? "updated" : <>{show(changes[k][0])} → <strong>{show(changes[k][1])}</strong></>}
+              <span className="text-muted">{k}:</span> {k === "Summary" || k === "Qualifications" || (hideContact && (k === "Email" || k === "Phone")) ? "updated" : <>{show(changes[k][0])} → <strong>{show(changes[k][1])}</strong></>}
             </li>
           ))}
         </ul>

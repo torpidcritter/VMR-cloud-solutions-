@@ -8,11 +8,12 @@ import { isIsoDate } from "@/lib/dates";
  * breaks the action being audited; a failure is logged and skipped.
  */
 
-export const LOGIN_OUTCOMES = ["success", "bad_password", "locked", "unknown", "inactive", "rate_limited", "signout"] as const;
+export const LOGIN_OUTCOMES = ["success", "bad_password", "mfa_failed", "locked", "unknown", "inactive", "rate_limited", "signout"] as const;
 export type LoginOutcome = (typeof LOGIN_OUTCOMES)[number];
 export const LOGIN_OUTCOME_LABELS: Record<LoginOutcome, string> = {
   success: "Signed in",
   bad_password: "Wrong password",
+  mfa_failed: "Wrong two-step code",
   locked: "Blocked: account locked",
   unknown: "No such account",
   inactive: "Blocked: account deactivated",
