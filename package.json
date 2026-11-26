@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:e2e": "DB_DRIVER=pglite CV_STORAGE=local MAIL_TRANSPORT=log next build",
+    "test:e2e": "bash tests/e2e/run-all.sh"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.1",
@@ -32,6 +34,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.5.29",
+    "playwright": "1.63.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^3.2.4"

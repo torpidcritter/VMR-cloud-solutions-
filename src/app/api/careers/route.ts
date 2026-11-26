@@ -11,6 +11,8 @@ import { OpeningClosedError, recordApplication } from "@/lib/data/applications";
 import { getSettings } from "@/lib/data/settings";
 import { saveSubmission } from "@/lib/submissions";
 import { extractResumeText } from "@/lib/resume-text";
+import { queueMail } from "@/lib/data/outbox";
+import { errorMessage, log } from "@/lib/log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -61,7 +63,7 @@ export async function POST(req: Request) {
       const stored = await storeResume({ file: buffer, ext, contentType: file!.type || "application/octet-stream" });
       resumeRef = { path: stored.path, name: file!.name.slice(0, 180), size: buffer.length, type: file!.type || "" };
     } catch (err) {
-      console.error("[careers] resume storage failed", err instanceof Error ? err.message : err);
+      log("error", "careers.storage_failed", { error: errorMessage(err) });
     }
   }
 
@@ -101,7 +103,7 @@ export async function POST(req: Request) {
 
   // Not stored anywhere and no email possible: don't pretend it worked.
   if (!saved && !willEmail) {
-    console.error("[careers] application not saved: database and email both unavailable");
+    log("error", "careers.not_saved", { reason: "database and email both unavailable" });
     return NextResponse.json({ ok: false, error: UNAVAILABLE }, { status: 503 });
   }
 
@@ -116,18 +118,26 @@ export async function POST(req: Request) {
       ["Consent", `Given ${submittedAt} (policy version ${CONSENT_VERSION})`],
     ];
     if (saved) rows.push(["Admin reference", `#${saved.number}${saved.repeat ? " (has applied before)" : ""}`]);
+    const mail = {
+      to: settings.applicationsEmail,
+      replyTo: data.email,
+      subject: `Job application: ${data.position} – ${data.fullName}`,
+      text: rows.map(([k, v]) => `${k}: ${v || "—"}`).join("\n"),
+      html: tableHtml("New job application from vmrcloudsolutions.com", rows),
+    };
     try {
-      await sendMail({
-        to: settings.applicationsEmail,
-        replyTo: data.email,
-        subject: `Job application: ${data.position} – ${data.fullName}`,
-        text: rows.map(([k, v]) => `${k}: ${v || "—"}`).join("\n"),
-        html: tableHtml("New job application from vmrcloudsolutions.com", rows),
-        attachments: [{ filename: safeName, content: buffer, contentType: file!.type || undefined }],
-      });
+      await sendMail({ ...mail, attachments: [{ filename: safeName, content: buffer, contentType: file!.type || undefined }] });
     } catch (err) {
-      console.error("[careers] send failed", err instanceof Error ? err.message : err);
+      log("error", "careers.notify_failed", { application: saved?.number ?? null, error: errorMessage(err) });
       if (!saved) return NextResponse.json({ ok: false, error: "We couldn't send your application just now." }, { status: 503 });
+      // Saved, so the team can see it in the panel; the email is retried by the daily job.
+      await queueMail({
+        kind: "application",
+        ref: `#${saved.number}`,
+        mail: resumeRef ? mail : { ...mail, text: `${mail.text}\n\n(The resume couldn't be attached to this retried email; open the application in the admin panel.)` },
+        attachment: resumeRef ? { path: resumeRef.path, name: safeName, type: file!.type || "application/octet-stream" } : null,
+        error: errorMessage(err),
+      });
     }
   }
 

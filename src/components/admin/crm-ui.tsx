@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Send } from "lucide-react";
 import { ActionForm, FieldError, SubmitButton, type ActionState } from "./forms";
 import { CLIENT_STATUSES, CLIENT_STATUS_LABELS } from "@/lib/data/constants";
@@ -194,7 +194,9 @@ export function EmailComposer({
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   // One key per message: a double click or retry of the same message sends it once (M-18).
-  const [sendKey, setSendKey] = useState(() => newSubmissionId());
+  // Made in the browser after the first render, so the server and browser HTML match.
+  const [sendKey, setSendKey] = useState("");
+  useEffect(() => setSendKey(newSubmissionId()), []);
   const values = useMemo(() => applications.find((a) => a.id === applicationId)?.values ?? base, [applications, applicationId, base]);
 
   const apply = (tid: string, v: MergeValues) => {

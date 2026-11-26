@@ -9,13 +9,14 @@ import { SettingsForm } from "./SettingsForm";
 import { resumeTextCoverage } from "@/lib/data/talent";
 import { ReadResumeTextButton } from "@/components/admin/talent-ui";
 import { listTemplates } from "@/lib/data/email";
+import { outboxStats } from "@/lib/data/outbox";
 
 export const metadata: Metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
   await requireAdmin("settings.manage");
   const coverage = await resumeTextCoverage();
-  const [settings, templates] = await Promise.all([getSettings(), listTemplates()]);
+  const [settings, templates, outbox] = await Promise.all([getSettings(), listTemplates(), outboxStats()]);
   const checks: [string, boolean, string][] = [
     ["Database", true, "Connected. Applications and enquiries are saved here."],
     ["Email (SMTP)", isMailConfigured(), "Needed to send notification emails. Add the SMTP_* variables in Vercel."],
@@ -37,6 +38,12 @@ export default async function SettingsPage() {
               </li>
             ))}
           </ul>
+          {(outbox.pending > 0 || outbox.gaveUp > 0) && (
+            <p className="mt-4 rounded-lg bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+              {outbox.pending > 0 && <>{outbox.pending} notification email{outbox.pending === 1 ? "" : "s"} to the team failed to send and will be retried by the daily job. </>}
+              {outbox.gaveUp > 0 && <>{outbox.gaveUp} could not be sent after several tries; the submissions themselves are saved under Applications.</>}
+            </p>
+          )}
         </Panel>
         <Panel title="Resume search">
           <p className="text-sm text-muted">

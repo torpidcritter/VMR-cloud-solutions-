@@ -9,6 +9,8 @@ import { recordApplication } from "@/lib/data/applications";
 import { getSettings } from "@/lib/data/settings";
 import { saveSubmission } from "@/lib/submissions";
 import { extractResumeText } from "@/lib/resume-text";
+import { queueMail } from "@/lib/data/outbox";
+import { errorMessage, log } from "@/lib/log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,7 +32,7 @@ export async function POST(req: Request) {
   // The CV must be stored, and someone must find out about it: by email,
   // or in the admin panel when the database is connected.
   if (!isStorageConfigured() || (!isMailConfigured() && !isDbConfigured())) {
-    console.error("[cv] upload unavailable: storage or email is not configured");
+    log("error", "cv.unavailable", { reason: "storage or email is not configured" });
     return json({ ok: false, error: UNAVAILABLE }, 503);
   }
 
@@ -82,7 +84,7 @@ export async function POST(req: Request) {
       },
     });
   } catch (err) {
-    console.error("[cv] storage failed", err instanceof Error ? err.message : err);
+    log("error", "cv.storage_failed", { error: errorMessage(err) });
     return json({ ok: false, error: "We couldn't save your CV just now." }, 503);
   }
 
@@ -118,7 +120,7 @@ export async function POST(req: Request) {
   }
   const settings = await getSettings();
   if (!isMailConfigured() || !settings.notifyApplications) {
-    if (!saved) console.error(`[cv] stored ${stored.id} but neither the database nor email recorded it`);
+    if (!saved) log("error", "cv.not_recorded", { reference: stored.id });
     return json({ ok: true, reference: stored.id.slice(0, 8).toUpperCase() });
   }
 
@@ -138,18 +140,20 @@ export async function POST(req: Request) {
   ];
   if (saved) rows.push(["Admin reference", `#${saved.number}${saved.repeat ? " (has applied before)" : ""}`]);
   const safeName = `${data.fullName.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "") || "candidate"}-CV.${ext}`;
+  const mail = {
+    to: settings.applicationsEmail,
+    replyTo: data.email,
+    subject: `New SAP CV: ${data.specialisation} (${data.employmentType}) – ${data.fullName}`,
+    text: rows.map(([k, v]) => `${k}: ${v}`).join("\n"),
+    html: tableHtml("New CV submitted on the website", rows),
+  };
   try {
-    await sendMail({
-      to: settings.applicationsEmail,
-      replyTo: data.email,
-      subject: `New SAP CV: ${data.specialisation} (${data.employmentType}) – ${data.fullName}`,
-      text: rows.map(([k, v]) => `${k}: ${v}`).join("\n"),
-      html: tableHtml("New CV submitted on the website", rows),
-      attachments: [{ filename: safeName, content: buffer, contentType: CV_MIME[ext] }],
-    });
+    await sendMail({ ...mail, attachments: [{ filename: safeName, content: buffer, contentType: CV_MIME[ext] }] });
   } catch (err) {
-    // Not fatal: the submission is stored and can be found by its reference.
-    console.error(`[cv] stored ${stored.id} but notification email failed`, err instanceof Error ? err.message : err);
+    // Not fatal: the submission is stored and can be found by its reference. With the
+    // database connected, the email is queued and retried by the daily job.
+    log("error", "cv.notify_failed", { reference: stored.id, error: errorMessage(err) });
+    if (saved) await queueMail({ kind: "cv", ref: stored.id, mail, attachment: { path: stored.cvPath, name: safeName, type: CV_MIME[ext] }, error: errorMessage(err) });
   }
 
   return json({ ok: true, reference: stored.id.slice(0, 8).toUpperCase() });

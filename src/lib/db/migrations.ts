@@ -541,4 +541,29 @@ export const MIGRATIONS: { version: number; statements: string[] }[] = [
        EXECUTE FUNCTION candidates_bump_version()`,
     ],
   },
+  {
+    // Hardening H3: emails to the team about new submissions that failed to send are
+    // kept here and retried by the daily job (M-17). Attachments are referenced by their
+    // private storage path, never copied into the database.
+    // Rollback: DROP TABLE notification_outbox; DELETE FROM schema_migrations WHERE version = 10.
+    version: 10,
+    statements: [
+      `CREATE TABLE notification_outbox (
+         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+         kind text NOT NULL,
+         ref text NOT NULL DEFAULT '',
+         mail jsonb NOT NULL,
+         attachment_path text,
+         attachment_name text,
+         attachment_type text,
+         attempts int NOT NULL DEFAULT 0,
+         last_error text NOT NULL DEFAULT '',
+         next_attempt_at timestamptz NOT NULL DEFAULT now(),
+         claimed_at timestamptz,
+         sent_at timestamptz,
+         created_at timestamptz NOT NULL DEFAULT now()
+       )`,
+      `CREATE INDEX notification_outbox_due ON notification_outbox(next_attempt_at) WHERE sent_at IS NULL`,
+    ],
+  },
 ];

@@ -8,6 +8,8 @@ import { notify } from "@/lib/data/notifications";
 import { pruneAudit } from "@/lib/data/audit";
 import { getSettings } from "@/lib/data/settings";
 import { sweepOrphanFiles } from "@/lib/data/files";
+import { retryOutbox } from "@/lib/data/outbox";
+import { errorMessage, log } from "@/lib/log";
 
 export const dynamic = "force-dynamic";
 
@@ -66,6 +68,12 @@ export async function GET(req: Request) {
     console.error("[cron:reminders] file clean-up failed", err instanceof Error ? err.message : err);
   }
   if (!isMailConfigured()) return NextResponse.json({ sent: 0, notified, pruned, files, skipped: "Email is not configured" });
+  let outbox: Awaited<ReturnType<typeof retryOutbox>> | null = null;
+  try {
+    outbox = await retryOutbox();
+  } catch (err) {
+    log("error", "cron.outbox_failed", { error: errorMessage(err) });
+  }
 
   const origin = process.env.ADMIN_ORIGIN?.replace(/\/$/, "") || new URL(req.url).origin;
   const due = await interviewsNeedingReminder(24);
@@ -102,5 +110,6 @@ export async function GET(req: Request) {
       failed.push(i.id);
     }
   }
-  return NextResponse.json({ due: due.length, sent, failed: failed.length, notified, pruned, files });
+  log("info", "cron.done", { due: due.length, sent, failed: failed.length, notified, outbox });
+  return NextResponse.json({ due: due.length, sent, failed: failed.length, notified, pruned, files, outbox });
 }

@@ -99,6 +99,10 @@ Recruitment admin for job openings, applications, the talent bank and enquiries.
 | Sales (SAP Practice) | Clients and enquiries; view openings and applications; tasks; analytics without client-opening links; download resumes |
 | Viewer | Read-only dashboard, openings, applications, enquiries; their own tasks |
 
+**Operations:** `GET /api/health` answers 200 when the site can take submissions and 503 when the database is down or behind the code (add `Authorization: Bearer <CRON_SECRET>` for storage, email and queue details). If the team email fails after a submission is saved, it is queued and retried by the daily job, with the resume attached. Server errors are logged as one JSON object per line. Deploying, rollback, monitoring, backups and restore are in [`docs/operations.md`](docs/operations.md).
+
+**Tests:** `npm test` runs the unit and integration tests. `npm run build:e2e && npm run test:e2e` runs the browser, concurrency and load tests against a production build ([`tests/e2e/README.md`](tests/e2e/README.md)). CI runs both, plus lint and type checks, on every push.
+
 **Local development:** `DB_DRIVER=pglite PGLITE_DIR=./.data/pglite ADMIN_SETUP_KEY=dev npm run dev` runs an embedded Postgres, no server needed.
 
 ## Before going live

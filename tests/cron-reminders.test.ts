@@ -20,6 +20,7 @@ vi.mock("@/lib/data/audit", () => ({ pruneAudit: (...a: unknown[]) => prune(...a
 vi.mock("@/lib/data/settings", () => ({ getSettings: async () => ({ auditRetentionDays: 365 }) }));
 const sweep = vi.fn();
 vi.mock("@/lib/data/files", () => ({ sweepOrphanFiles: (...a: unknown[]) => sweep(...a) }));
+vi.mock("@/lib/data/outbox", () => ({ retryOutbox: async () => ({ tried: 0, sent: 0, failed: 0 }) }));
 const FILES = { checked: 3, deleted: 1, skipped: null };
 const PRUNED = { keepDays: 365, activity: 4, logins: 2, notifications: 1 };
 vi.mock("@/lib/mailer", async () => {
@@ -70,7 +71,7 @@ describe("GET /api/cron/reminders", () => {
     });
     const res = await call(`Bearer ${SECRET}`);
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ due: 3, sent: 1, failed: 1, notified: 0, pruned: PRUNED, files: FILES });
+    expect(await res.json()).toEqual({ due: 3, sent: 1, failed: 1, notified: 0, pruned: PRUNED, files: FILES, outbox: { tried: 0, sent: 0, failed: 0 } });
     expect(prune).toHaveBeenCalledWith(365);
     expect(send).toHaveBeenCalledTimes(2);
     expect(send.mock.calls[0][0]).toMatchObject({ to: "recruiter@example.test" });
@@ -98,7 +99,7 @@ describe("GET /api/cron/reminders", () => {
     due.mockResolvedValue([interview("a")]);
     claim.mockResolvedValue(true);
     send.mockResolvedValue({});
-    expect(await (await call(`Bearer ${SECRET}`)).json()).toEqual({ due: 1, sent: 1, failed: 0, notified: 0, pruned: null, files: null });
+    expect(await (await call(`Bearer ${SECRET}`)).json()).toEqual({ due: 1, sent: 1, failed: 0, notified: 0, pruned: null, files: null, outbox: { tried: 0, sent: 0, failed: 0 } });
     err.mockRestore();
   });
 });

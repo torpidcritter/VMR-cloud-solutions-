@@ -1,5 +1,6 @@
 import "server-only";
 import { isDbConfigured } from "@/lib/db/client";
+import { errorMessage, log } from "@/lib/log";
 
 /**
  * Website forms save to the admin database when one is connected. A database
@@ -11,7 +12,7 @@ export async function saveSubmission<T>(label: string, save: () => Promise<T>): 
   try {
     return await save();
   } catch (err) {
-    console.error(`[${label}] database save failed`, err instanceof Error ? err.message : err);
+    log("error", `${label}.save_failed`, { error: errorMessage(err) });
     return null;
   }
 }
