@@ -6,6 +6,8 @@ import { assertAdmin } from "@/lib/auth/session";
 import { createOpening, deleteOpening, getOpening, getOpeningRecruiters, parseOpening, setOpeningRecruiters, setOpeningStatus, updateOpening } from "@/lib/data/openings";
 import { OPENING_STATUSES, OPENING_STATUS_LABELS, type OpeningStatus } from "@/lib/data/constants";
 import { logActivity } from "@/lib/data/activity";
+import { linkRequirementToOpening } from "@/lib/data/clients";
+import { notify } from "@/lib/data/notifications";
 import type { ActionState } from "@/components/admin/forms";
 
 const UUID = /^[0-9a-f-]{36}$/i;
@@ -28,14 +30,23 @@ export async function saveOpeningAction(_: ActionState, form: FormData): Promise
   if (id) {
     const before = await getOpening(id);
     if (!before) return { error: "This opening no longer exists." };
-    await updateOpening(id, data);
-    if (recruiters) await setOpeningRecruiters(id, recruiters);
+    const had = recruiters ? await getOpeningRecruiters(id) : [];
+    await updateOpening(id, data, me.id);
+    if (recruiters) {
+      await setOpeningRecruiters(id, recruiters);
+      const now = await getOpeningRecruiters(id);
+      await notify(now.filter((u) => !had.includes(u)), me.id, "assign", `${me.name} added you as a recruiter on ${data.title}`, `/admin/openings/${id}`);
+    }
     await logActivity(me.id, "update", "opening", id, `Updated opening "${data.title}"${before.status !== data.status ? ` (${OPENING_STATUS_LABELS[before.status]} → ${OPENING_STATUS_LABELS[data.status]})` : ""}`);
     refreshPublic(before.slug);
     return { ok: true, message: data.status === "published" ? "Saved. The changes are live on the website." : "Saved." };
   }
   const newId = await createOpening(data, me.id);
-  if (recruiters) await setOpeningRecruiters(newId, recruiters);
+  if (recruiters) {
+    await setOpeningRecruiters(newId, recruiters);
+    await notify(await getOpeningRecruiters(newId), me.id, "assign", `${me.name} added you as a recruiter on ${data.title}`, `/admin/openings/${newId}`);
+  }
+  if (typeof raw.requirementId === "string" && UUID.test(raw.requirementId)) await linkRequirementToOpening(raw.requirementId, newId, me.id);
   await logActivity(me.id, "create", "opening", newId, `Created opening "${data.title}" as ${OPENING_STATUS_LABELS[data.status]}`);
   refreshPublic();
   redirect(`/admin/openings/${newId}?created=1`);

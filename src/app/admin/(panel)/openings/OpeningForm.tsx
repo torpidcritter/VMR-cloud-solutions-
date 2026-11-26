@@ -26,7 +26,17 @@ export type OpeningFormValues = {
   recruiters: string[];
 };
 
-export function OpeningForm({ values, recruiterChoices = [] }: { values: OpeningFormValues; recruiterChoices?: { id: string; name: string }[] }) {
+export function OpeningForm({
+  values,
+  recruiterChoices = [],
+  clientNames = [],
+  requirementId,
+}: {
+  values: OpeningFormValues;
+  recruiterChoices?: { id: string; name: string }[];
+  clientNames?: string[];
+  requirementId?: string;
+}) {
   return (
     <ActionForm action={saveOpeningAction} className="grid gap-5">
       {(state) => {
@@ -60,6 +70,7 @@ export function OpeningForm({ values, recruiterChoices = [] }: { values: Opening
         return (
           <>
             {values.id && <input type="hidden" name="id" value={values.id} />}
+            {requirementId && <input type="hidden" name="requirementId" value={requirementId} />}
             <section className="card grid gap-4 p-5 sm:grid-cols-2">
               <h2 className="text-sm font-semibold sm:col-span-2">The role</h2>
               <div className="sm:col-span-2">{input("title", "Job title", { maxLength: 160, placeholder: "e.g. SAP S/4HANA FICO Consultant" })}</div>
@@ -104,7 +115,14 @@ export function OpeningForm({ values, recruiterChoices = [] }: { values: Opening
 
             <section className="card grid gap-4 p-5 sm:grid-cols-2">
               <h2 className="text-sm font-semibold sm:col-span-2">Client</h2>
-              {input("client_name", "Client name (private)", { maxLength: 160 }, "Only admins see this. It never appears on the website.")}
+              <div>
+                {input("client_name", "Client name (private)", { maxLength: 160, list: "client-names", autoComplete: "off" }, "Only admins see this. It never appears on the website. The opening is listed under this client in Clients; a new name adds the client.")}
+                <datalist id="client-names">
+                  {clientNames.map((n) => (
+                    <option key={n} value={n} />
+                  ))}
+                </datalist>
+              </div>
               {input("public_client_label", "Shown on the website as", { maxLength: 160, placeholder: "e.g. Leading global IT services company" })}
             </section>
 

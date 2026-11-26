@@ -154,3 +154,9 @@ export function withParams(base: string, current: Record<string, string | undefi
 export function Notice({ tone = "blue", children }: { tone?: Tone; children: ReactNode }) {
   return <div className={`mb-5 rounded-xl px-4 py-3 text-sm ${TONES[tone]}`}>{children}</div>;
 }
+
+const CLIENT_TONES: Record<string, Tone> = { prospect: "amber", active: "green", inactive: "grey" };
+const CLIENT_LABELS: Record<string, string> = { prospect: "Prospect", active: "Active", inactive: "Inactive" };
+export function ClientStatusBadge({ status }: { status: string }) {
+  return <Badge tone={CLIENT_TONES[status] ?? "grey"}>{CLIENT_LABELS[status] ?? status}</Badge>;
+}

@@ -287,4 +287,114 @@ export const MIGRATIONS: { version: number; statements: string[] }[] = [
       `ALTER TABLE application_events ADD CONSTRAINT application_events_kind_check CHECK (kind IN ('note','status','assign','edit','email','interview','task','merge','file','pool'))`,
     ],
   },
+  {
+    // ATS phase 4: client CRM (linked to openings), email templates and the
+    // emails sent to candidates, and in-app notifications.
+    version: 5,
+    statements: [
+      `CREATE TABLE clients (
+         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+         name text NOT NULL CHECK (length(name) BETWEEN 1 AND 160),
+         industry text NOT NULL DEFAULT '',
+         website text NOT NULL DEFAULT '',
+         location text NOT NULL DEFAULT '',
+         status text NOT NULL DEFAULT 'active' CHECK (status IN ('prospect','active','inactive')),
+         account_manager_id uuid REFERENCES admin_users(id) ON DELETE SET NULL,
+         notes text NOT NULL DEFAULT '',
+         enquiry_id uuid REFERENCES enquiries(id) ON DELETE SET NULL,
+         created_by uuid REFERENCES admin_users(id) ON DELETE SET NULL,
+         created_at timestamptz NOT NULL DEFAULT now(),
+         updated_at timestamptz NOT NULL DEFAULT now()
+       )`,
+      `CREATE UNIQUE INDEX clients_name ON clients(lower(name))`,
+      `CREATE TABLE client_contacts (
+         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+         client_id uuid NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+         name text NOT NULL,
+         title text NOT NULL DEFAULT '',
+         email text NOT NULL DEFAULT '',
+         phone text NOT NULL DEFAULT '',
+         is_primary boolean NOT NULL DEFAULT false,
+         created_at timestamptz NOT NULL DEFAULT now()
+       )`,
+      `CREATE INDEX client_contacts_client ON client_contacts(client_id)`,
+      `CREATE TABLE client_requirements (
+         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+         client_id uuid NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+         title text NOT NULL,
+         sap_module text NOT NULL DEFAULT '',
+         positions int NOT NULL DEFAULT 1 CHECK (positions BETWEEN 1 AND 999),
+         status text NOT NULL DEFAULT 'open' CHECK (status IN ('open','on_hold','filled','cancelled')),
+         needed_by date,
+         notes text NOT NULL DEFAULT '',
+         opening_id uuid REFERENCES job_openings(id) ON DELETE SET NULL,
+         created_by uuid REFERENCES admin_users(id) ON DELETE SET NULL,
+         created_at timestamptz NOT NULL DEFAULT now(),
+         updated_at timestamptz NOT NULL DEFAULT now()
+       )`,
+      `CREATE INDEX client_requirements_client ON client_requirements(client_id)`,
+      `CREATE TABLE client_events (
+         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+         client_id uuid NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+         user_id uuid REFERENCES admin_users(id) ON DELETE SET NULL,
+         kind text NOT NULL CHECK (kind IN ('note','edit','contact','requirement','opening')),
+         body text NOT NULL,
+         created_at timestamptz NOT NULL DEFAULT now()
+       )`,
+      `CREATE INDEX client_events_client ON client_events(client_id, created_at DESC)`,
+      `ALTER TABLE job_openings ADD COLUMN client_id uuid REFERENCES clients(id) ON DELETE SET NULL`,
+      `CREATE INDEX job_openings_client ON job_openings(client_id)`,
+      // Every client named on an opening today becomes a client record.
+      `INSERT INTO clients (name, created_at)
+       SELECT DISTINCT ON (lower(trim(client_name))) left(trim(client_name), 160), created_at FROM job_openings
+        WHERE trim(client_name) <> '' ORDER BY lower(trim(client_name)), created_at`,
+      `UPDATE job_openings o SET client_id = c.id FROM clients c WHERE lower(trim(o.client_name)) = lower(c.name)`,
+      `CREATE TABLE email_templates (
+         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+         name text NOT NULL CHECK (length(name) BETWEEN 1 AND 80),
+         subject text NOT NULL CHECK (length(subject) BETWEEN 1 AND 200),
+         body text NOT NULL CHECK (length(body) BETWEEN 1 AND 8000),
+         active boolean NOT NULL DEFAULT true,
+         updated_by uuid REFERENCES admin_users(id) ON DELETE SET NULL,
+         created_at timestamptz NOT NULL DEFAULT now(),
+         updated_at timestamptz NOT NULL DEFAULT now()
+       )`,
+      `CREATE UNIQUE INDEX email_templates_name ON email_templates(lower(name))`,
+      `INSERT INTO email_templates (name, subject, body) VALUES
+        ('Application received', 'Your application for {{position}}',
+         E'Dear {{candidate_first_name}},\n\nThank you for applying for the {{position}} role with VMR Cloud Solutions. Our team is reviewing your profile and will be in touch if it is a good fit.\n\nRegards,\n{{recruiter_name}}\nVMR Cloud Solutions'),
+        ('Shortlisted', 'Next steps for {{position}}',
+         E'Dear {{candidate_first_name}},\n\nGood news: your profile has been shortlisted for the {{position}} role. I would like to set up a short call to discuss the next steps. Please reply with a few times that suit you.\n\nRegards,\n{{recruiter_name}}\nVMR Cloud Solutions'),
+        ('Interview invitation', 'Interview for {{position}} on {{interview_date}}',
+         E'Dear {{candidate_first_name}},\n\nYour {{interview_round}} for the {{position}} role is scheduled for {{interview_date}} at {{interview_time}} (India time).\n\nHow: {{interview_mode}}\nWhere: {{interview_location}}\n\nPlease reply to confirm, or let me know if you need a different time.\n\nRegards,\n{{recruiter_name}}\nVMR Cloud Solutions'),
+        ('Not taken forward', 'Your application for {{position}}',
+         E'Dear {{candidate_first_name}},\n\nThank you for your interest in the {{position}} role. After careful review we will not be taking your application forward this time. We will keep your profile on file and contact you about suitable roles in future.\n\nRegards,\n{{recruiter_name}}\nVMR Cloud Solutions'),
+        ('Offer', 'Offer for {{position}}',
+         E'Dear {{candidate_first_name}},\n\nI am pleased to let you know that we would like to make you an offer for the {{position}} role. I will call you shortly to go through the details.\n\nRegards,\n{{recruiter_name}}\nVMR Cloud Solutions')`,
+      `CREATE TABLE email_messages (
+         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+         candidate_id uuid NOT NULL REFERENCES candidates(id) ON DELETE CASCADE,
+         application_id uuid REFERENCES applications(id) ON DELETE SET NULL,
+         template_id uuid REFERENCES email_templates(id) ON DELETE SET NULL,
+         to_email text NOT NULL,
+         subject text NOT NULL,
+         body text NOT NULL,
+         status text NOT NULL CHECK (status IN ('sent','failed')),
+         error text NOT NULL DEFAULT '',
+         sent_by uuid REFERENCES admin_users(id) ON DELETE SET NULL,
+         created_at timestamptz NOT NULL DEFAULT now()
+       )`,
+      `CREATE INDEX email_messages_candidate ON email_messages(candidate_id, created_at DESC)`,
+      `CREATE TABLE notifications (
+         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+         user_id uuid NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+         kind text NOT NULL,
+         title text NOT NULL,
+         link text NOT NULL DEFAULT '',
+         read_at timestamptz,
+         created_at timestamptz NOT NULL DEFAULT now()
+       )`,
+      `CREATE INDEX notifications_user ON notifications(user_id, created_at DESC)`,
+    ],
+  },
 ];

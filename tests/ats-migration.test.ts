@@ -27,12 +27,13 @@ describe("migration 2 on existing data", () => {
     await old.query(`INSERT INTO application_events (application_id, user_id, kind, from_status, to_status) VALUES ($1, $2, 'status', 'new', 'under_review')`, [a.id, u.id]);
     await old.query(`INSERT INTO application_events (application_id, user_id, kind, body) VALUES ($1, $2, 'note', 'Old note')`, [a.id, u.id]);
     await old.query(`INSERT INTO job_openings (slug, title, salary_range) VALUES ('old-job', 'Old job', '₹10 LPA')`);
+    await old.query(`INSERT INTO job_openings (slug, title, client_name) VALUES ('old-a', 'Old A', ' Old Client Test '), ('old-b', 'Old B', 'old client test')`);
     await old.close();
 
     const { db } = await import("@/lib/db/client");
     const conn = await db();
     const versions = await conn.query<{ version: number }>(`SELECT version FROM schema_migrations ORDER BY version`);
-    expect(versions.map((v) => Number(v.version))).toEqual([1, 2, 3, 4]);
+    expect(versions.map((v) => Number(v.version))).toEqual([1, 2, 3, 4, 5]);
 
     const apps = await conn.query<{ status: string; stage_changed_at: string | null; assigned_to: string | null }>(`SELECT status, stage_changed_at, assigned_to FROM applications ORDER BY number`);
     expect(apps.map((r) => r.status)).toEqual(["new", "screening", "interview_scheduled", "offer_released", "hired"]);
@@ -45,8 +46,13 @@ describe("migration 2 on existing data", () => {
 
     const [cand] = await conn.query<{ priority: string; tags: string[]; skills: string[] }>(`SELECT priority, tags, skills FROM candidates`);
     expect(cand).toMatchObject({ priority: "normal", tags: [], skills: [] });
-    const [job] = await conn.query<{ vacancies: number; salary_visible: boolean }>(`SELECT vacancies, salary_visible FROM job_openings`);
+    const [job] = await conn.query<{ vacancies: number; salary_visible: boolean }>(`SELECT vacancies, salary_visible FROM job_openings WHERE slug = 'old-job'`);
     expect(job).toMatchObject({ vacancies: 1, salary_visible: true });
+    // Migration 5: each distinct client name on an opening became one client, and the openings point at it.
+    const linked = await conn.query<{ slug: string; client: string | null }>(`SELECT o.slug, c.name AS client FROM job_openings o LEFT JOIN clients c ON c.id = o.client_id ORDER BY o.slug`);
+    expect(linked.map((r) => [r.slug, r.client?.toLowerCase() ?? null])).toEqual([["old-a", "old client test"], ["old-b", "old client test"], ["old-job", null]]);
+    expect((await conn.query(`SELECT 1 FROM clients`)).length).toBe(1);
+    expect((await conn.query(`SELECT 1 FROM email_templates`)).length).toBe(5);
 
     // The old statuses can no longer be written.
     await expect(conn.query(`UPDATE applications SET status = 'interview'`)).rejects.toThrow();

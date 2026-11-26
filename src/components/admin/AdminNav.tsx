@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import {
   Activity,
   BriefcaseBusiness,
+  Building2,
   CalendarClock,
   ClipboardList,
   Columns3,
@@ -29,6 +30,7 @@ const ICONS = {
   candidates: Users,
   pools: FolderHeart,
   openings: BriefcaseBusiness,
+  clients: Building2,
   enquiries: MessageSquare,
   users: UserCog,
   activity: Activity,

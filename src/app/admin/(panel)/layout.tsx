@@ -6,6 +6,8 @@ import { can, ROLE_LABELS, type Permission } from "@/lib/auth/permissions";
 import { AdminNav, type NavGroup, type NavItem } from "@/components/admin/AdminNav";
 import { Toaster } from "@/components/admin/Toaster";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { Bell } from "lucide-react";
+import { unreadCount } from "@/lib/data/notifications";
 import { signOutAction } from "../actions/auth";
 
 const NAV: { label: string; items: (NavItem & { perm: Permission })[] }[] = [
@@ -34,6 +36,7 @@ const NAV: { label: string; items: (NavItem & { perm: Permission })[] }[] = [
   {
     label: "Business",
     items: [
+      { href: "/admin/clients", label: "Clients", icon: "clients", perm: "clients.view" },
       { href: "/admin/openings", label: "Job Openings", icon: "openings", perm: "openings.view" },
       { href: "/admin/enquiries", label: "Enquiries", icon: "enquiries", perm: "enquiries.view" },
     ],
@@ -55,6 +58,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
     label: g.label,
     items: g.items.filter((n) => can(me.role, n.perm)).map((n) => ({ href: n.href, label: n.label, icon: n.icon })),
   })).filter((g) => g.items.length);
+  const unread = await unreadCount(me.id).catch(() => 0);
   const initials = me.name
     .split(/\s+/)
     .map((p) => p[0])
@@ -73,6 +77,18 @@ export default async function PanelLayout({ children }: { children: React.ReactN
           </Link>
           <div className="ml-auto flex items-center gap-2">
             <ThemeToggle className="!size-9" />
+            <Link
+              href="/admin/notifications"
+              className="relative grid size-9 place-items-center rounded-full border border-line text-ink-soft hover:border-brand-300 hover:text-ink"
+              aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"}
+            >
+              <Bell aria-hidden className="size-4" />
+              {unread > 0 && (
+                <span aria-hidden className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-accent-600 px-1 text-[0.65rem] font-bold leading-none text-white">
+                  {unread > 99 ? "99+" : unread}
+                </span>
+              )}
+            </Link>
             <details className="relative">
               <summary className="flex cursor-pointer list-none items-center gap-2 rounded-full border border-line py-1 pl-1 pr-3 hover:border-brand-300 [&::-webkit-details-marker]:hidden">
                 <span className="grid size-7 place-items-center rounded-full bg-btn text-xs font-bold text-white">{initials}</span>

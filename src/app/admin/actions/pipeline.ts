@@ -5,6 +5,7 @@ import { assertAdmin, ForbiddenError } from "@/lib/auth/session";
 import { assignApplication, getApplication, recruiterOptions, setApplicationStatus } from "@/lib/data/applications";
 import { APPLICATION_STATUSES, APPLICATION_STATUS_LABELS, type ApplicationStatus } from "@/lib/data/constants";
 import { logActivity } from "@/lib/data/activity";
+import { notify } from "@/lib/data/notifications";
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -39,6 +40,7 @@ export async function assignApplicationAction(form: FormData) {
   if (to && !(await recruiterOptions()).some((r) => r.id === to)) return;
   if (await assignApplication(id, to, me.id)) {
     await logActivity(me.id, "assign", "application", id, `#${app.number} ${app.full_name} ${to ? "assigned" : "unassigned"}`);
+    if (to) await notify([to], me.id, "assign", `${me.name} assigned you application #${app.number}: ${app.full_name}`, `/admin/applications/${id}`);
   }
   revalidatePath(`/admin/applications/${id}`);
   revalidatePath("/admin/pipeline");

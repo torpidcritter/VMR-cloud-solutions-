@@ -9,6 +9,9 @@ import { recruiterOptions } from "@/lib/data/applications";
 import { listInterviews } from "@/lib/data/interviews";
 import { listCandidateFiles, listPools, poolsForCandidate } from "@/lib/data/talent";
 import { matchOpeningsForCandidate } from "@/lib/data/matching";
+import { composeContext, listEmails, listTemplates } from "@/lib/data/email";
+import { isMailConfigured } from "@/lib/mailer";
+import { EmailComposer } from "@/components/admin/crm-ui";
 import { AddToPoolForm, MatchReasons, PutForwardButton, ScoreRing, UploadResumeForm } from "@/components/admin/talent-ui";
 import { InterviewList } from "@/components/admin/interview-ui";
 import { APPLICATION_SOURCE_LABELS, CANDIDATE_PRIORITIES, CANDIDATE_PRIORITY_LABELS } from "@/lib/data/constants";
@@ -24,7 +27,7 @@ import { QuickField } from "./QuickField";
 export const metadata: Metadata = { title: "Candidate" };
 
 const one = (v: unknown) => (typeof v === "string" ? v.slice(0, 40) : undefined);
-const KINDS = ["note", "status", "interview", "assign", "edit", "file", "pool", "merge"] as const;
+const KINDS = ["note", "email", "status", "interview", "assign", "edit", "file", "pool", "merge"] as const;
 
 export default async function CandidatePage({
   params,
@@ -44,13 +47,18 @@ export default async function CandidatePage({
   const kind = (KINDS as readonly string[]).includes(one(sp.kind) ?? "") ? one(sp.kind) : undefined;
   const canPool = can(me.role, "talent.manage");
   const canForward = can(me.role, "applications.update");
-  const [recruiters, interviews, files, pools, allPools, matches] = await Promise.all([
+  const canEmail = can(me.role, "email.send");
+  const mailReady = isMailConfigured();
+  const [recruiters, interviews, files, pools, allPools, matches, emails, templates, compose] = await Promise.all([
     editable ? recruiterOptions() : Promise.resolve([]),
     listInterviews({ candidateId: c.id }, 50),
     listCandidateFiles(c.id),
     poolsForCandidate(c.id),
     canPool ? listPools() : Promise.resolve([]),
     matchOpeningsForCandidate(c.id, 5),
+    listEmails(c.id),
+    canEmail && mailReady ? listTemplates({ activeOnly: true }) : Promise.resolve([]),
+    canEmail && mailReady ? composeContext(c.id, me.name) : Promise.resolve(null),
   ]);
   const freePools = allPools.filter((p) => !pools.some((x) => x.id === p.id));
   const today = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
@@ -90,9 +98,15 @@ export default async function CandidatePage({
         }
         actions={
           <>
-            <a href={`mailto:${c.email}`} className="a-btn">
-              <Mail aria-hidden className="size-4" /> Email
-            </a>
+            {canEmail && mailReady ? (
+              <Link href={`${base}?compose=1#emails`} className="a-btn">
+                <Mail aria-hidden className="size-4" /> Email
+              </Link>
+            ) : (
+              <a href={`mailto:${c.email}`} className="a-btn">
+                <Mail aria-hidden className="size-4" /> Email
+              </a>
+            )}
             {c.phone && (
               <a href={`tel:${c.phone.replace(/[^\d+]/g, "")}`} className="a-btn">
                 <Phone aria-hidden className="size-4" /> Call
@@ -272,6 +286,57 @@ export default async function CandidatePage({
 
           <Panel title={`Interviews${interviews.length ? ` (${interviews.length})` : ""}`} bodyClass="">
             <InterviewList items={[...interviews].reverse()} empty="No interviews yet. Schedule one from an application." showCandidate={false} />
+          </Panel>
+
+          <Panel title={`Emails${emails.length ? ` (${emails.length})` : ""}`} bodyClass="">
+            <div id="emails" className="scroll-mt-24" />
+            {canEmail && (
+              <div className="border-b border-line px-5 py-4">
+                {!mailReady ? (
+                  <p className="text-sm text-muted">Sending email from here needs the site&apos;s email (SMTP) settings. A Super Admin can add them in Vercel.</p>
+                ) : compose ? (
+                  <details open={one(sp.compose) === "1"}>
+                    <summary className="cursor-pointer text-sm font-medium text-brand-600">Write an email</summary>
+                    <div className="mt-4">
+                      <EmailComposer
+                        candidateId={c.id}
+                        to={compose.to}
+                        base={compose.base}
+                        applications={compose.applications}
+                        templates={templates.map((t) => ({ id: t.id, name: t.name, subject: t.subject, body: t.body }))}
+                      />
+                    </div>
+                  </details>
+                ) : null}
+              </div>
+            )}
+            {emails.length ? (
+              <ul className="divide-y divide-line">
+                {emails.map((m) => (
+                  <li key={m.id} className="px-5 py-3 text-sm">
+                    <details>
+                      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-2 gap-y-1 [&::-webkit-details-marker]:hidden">
+                        <span className="min-w-0 flex-1 font-medium">{m.subject}</span>
+                        {m.status === "failed" && <Badge tone="red">Not sent</Badge>}
+                        <span className="text-xs text-muted">
+                          {m.sent_by_name ?? "System"} · {formatDateTime(m.created_at)}
+                        </span>
+                      </summary>
+                      <div className="mt-2 rounded-lg bg-surface p-3">
+                        <p className="text-xs text-muted">
+                          To {m.to_email}
+                          {m.template_name ? ` · from the "${m.template_name}" template` : ""}
+                          {m.application_number ? ` · about application #${m.application_number}` : ""}
+                        </p>
+                        <p className="mt-2 whitespace-pre-line">{m.body}</p>
+                      </div>
+                    </details>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="px-5 py-4 text-sm text-muted">No emails sent from the admin panel yet.</p>
+            )}
           </Panel>
 
           <Panel title="Timeline">

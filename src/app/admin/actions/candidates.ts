@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { assertAdmin } from "@/lib/auth/session";
 import { addCandidateNote, getCandidate, mergeCandidates, parseCandidate, setCandidateFields, updateCandidate } from "@/lib/data/candidates";
 import { logActivity } from "@/lib/data/activity";
+import { notify } from "@/lib/data/notifications";
 import type { ActionState } from "@/components/admin/forms";
 
 const UUID = /^[0-9a-f-]{36}$/i;
@@ -44,6 +45,7 @@ export async function quickCandidateAction(form: FormData) {
   if (await setCandidateFields(id, changes, me.id)) {
     const c = await getCandidate(id);
     await logActivity(me.id, "update", "candidate", id, `${c?.full_name ?? "Candidate"}: ${field === "contacted" ? "marked as contacted" : `${field} set to ${value || "none"}`}`);
+    if (field === "owner" && value && c) await notify([value], me.id, "assign", `${me.name} made you the owner of ${c.full_name}`, `/admin/candidates/${id}`);
   }
   revalidatePath(`/admin/candidates/${id}`);
 }

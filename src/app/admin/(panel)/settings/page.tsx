@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { requireAdmin } from "@/lib/auth/session";
 import { getSettings } from "@/lib/data/settings";
 import { isMailConfigured } from "@/lib/mailer";
@@ -7,13 +8,14 @@ import { Badge, PageHeader, Panel } from "@/components/admin/ui";
 import { SettingsForm } from "./SettingsForm";
 import { resumeTextCoverage } from "@/lib/data/talent";
 import { ReadResumeTextButton } from "@/components/admin/talent-ui";
+import { listTemplates } from "@/lib/data/email";
 
 export const metadata: Metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
   await requireAdmin("settings.manage");
   const coverage = await resumeTextCoverage();
-  const settings = await getSettings();
+  const [settings, templates] = await Promise.all([getSettings(), listTemplates()]);
   const checks: [string, boolean, string][] = [
     ["Database", true, "Connected. Applications and enquiries are saved here."],
     ["Email (SMTP)", isMailConfigured(), "Needed to send notification emails. Add the SMTP_* variables in Vercel."],
@@ -46,6 +48,14 @@ export default async function SettingsPage() {
               <ReadResumeTextButton />
             </div>
           )}
+        </Panel>
+        <Panel title="Candidate email templates">
+          <p className="text-sm text-muted">
+            {templates.filter((t) => t.active).length} of {templates.length} template{templates.length === 1 ? "" : "s"} offered when recruiters email a candidate from their profile.
+          </p>
+          <Link href="/admin/settings/email-templates" className="a-btn mt-3">
+            Manage templates
+          </Link>
         </Panel>
         <SettingsForm settings={settings} />
       </div>

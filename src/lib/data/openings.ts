@@ -1,6 +1,7 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
 import { db, isDbConfigured } from "@/lib/db/client";
+import { clientIdFor } from "./clients";
 import { EMPLOYMENT_TYPES, OPENING_STATUSES, WORK_MODES, type OpeningStatus } from "./constants";
 
 export type Opening = {
@@ -126,9 +127,16 @@ export async function getOpening(id: string) {
 export async function createOpening(input: OpeningInput, userId: string) {
   const conn = await db();
   const [row] = await conn.query<{ id: string }>(
-    `INSERT INTO job_openings (slug, title, sap_module, client_name, public_client_label, location, work_mode, experience, employment_type,
-       salary_range, summary, description, skills, status, closing_date, published_at, created_by, vacancies, salary_visible, min_experience_years)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15, CASE WHEN $14 = 'published' THEN now() END, $16, $17, $18, $19) RETURNING id`,
+    // The client is found (or added to the CRM) in the same statement, so the link is never half made.
+    `WITH ${clientIdFor(4, 16)},
+     o AS (
+       INSERT INTO job_openings (slug, title, sap_module, client_name, public_client_label, location, work_mode, experience, employment_type,
+         salary_range, summary, description, skills, status, closing_date, published_at, created_by, vacancies, salary_visible, min_experience_years, client_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15, CASE WHEN $14 = 'published' THEN now() END, $16, $17, $18, $19, (SELECT id FROM client_link))
+       RETURNING id, client_id
+     ),
+     e AS (INSERT INTO client_events (client_id, user_id, kind, body) SELECT client_id, $16, 'opening', 'Opening added: ' || $2 FROM o WHERE client_id IS NOT NULL)
+     SELECT id FROM o`,
     [
       slugify(input.title),
       input.title,
@@ -154,14 +162,23 @@ export async function createOpening(input: OpeningInput, userId: string) {
   return row.id;
 }
 
-export async function updateOpening(id: string, input: OpeningInput) {
+export async function updateOpening(id: string, input: OpeningInput, userId: string | null = null) {
   const conn = await db();
   await conn.query(
-    `UPDATE job_openings SET title=$2, sap_module=$3, client_name=$4, public_client_label=$5, location=$6, work_mode=$7, experience=$8,
-       employment_type=$9, salary_range=$10, summary=$11, description=$12, skills=$13, status=$14, closing_date=$15,
-       vacancies=$16, salary_visible=$17, min_experience_years=$18,
-       published_at = CASE WHEN $14 = 'published' AND published_at IS NULL THEN now() ELSE published_at END, updated_at = now()
-     WHERE id = $1`,
+    `WITH ${clientIdFor(4, 19)},
+     prev AS (SELECT client_id FROM job_openings WHERE id = $1),
+     o AS (
+       UPDATE job_openings SET title=$2, sap_module=$3, client_name=$4, public_client_label=$5, location=$6, work_mode=$7, experience=$8,
+         employment_type=$9, salary_range=$10, summary=$11, description=$12, skills=$13, status=$14, closing_date=$15,
+         vacancies=$16, salary_visible=$17, min_experience_years=$18, client_id = (SELECT id FROM client_link),
+         published_at = CASE WHEN $14 = 'published' AND published_at IS NULL THEN now() ELSE published_at END, updated_at = now()
+       WHERE id = $1 RETURNING client_id
+     ),
+     e AS (
+       INSERT INTO client_events (client_id, user_id, kind, body)
+       SELECT client_id, $19, 'opening', 'Opening linked: ' || $2 FROM o WHERE client_id IS NOT NULL AND client_id IS DISTINCT FROM (SELECT client_id FROM prev)
+     )
+     SELECT 1`,
     [
       id,
       input.title,
@@ -181,6 +198,7 @@ export async function updateOpening(id: string, input: OpeningInput) {
       input.vacancies,
       input.salary_visible,
       input.min_experience_years,
+      userId,
     ],
   );
 }

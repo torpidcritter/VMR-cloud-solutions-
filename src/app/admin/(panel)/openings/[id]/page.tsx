@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/auth/session";
 import { can } from "@/lib/auth/permissions";
 import { getOpening, getOpeningRecruiters } from "@/lib/data/openings";
 import { recruiterOptions } from "@/lib/data/applications";
+import { clientNames, clientOfOpening } from "@/lib/data/clients";
 import { ConfirmButton, SubmitButton } from "@/components/admin/forms";
 import { Notice, OpeningStatusBadge, PageHeader, formatDateTime } from "@/components/admin/ui";
 import { deleteOpeningAction, duplicateOpeningAction, setOpeningStatusAction } from "../../../actions/openings";
@@ -20,7 +21,13 @@ export default async function OpeningPage({ params, searchParams }: { params: Pr
   if (!o) notFound();
   const editable = can(me.role, "openings.edit");
   const showClient = can(me.role, "openings.viewClient");
-  const [assigned, recruiters] = await Promise.all([getOpeningRecruiters(o.id), recruiterOptions()]);
+  const showClientRecord = showClient && can(me.role, "clients.view");
+  const [assigned, recruiters, names, client] = await Promise.all([
+    getOpeningRecruiters(o.id),
+    recruiterOptions(),
+    editable && showClient ? clientNames() : Promise.resolve([]),
+    showClientRecord ? clientOfOpening(o.id) : Promise.resolve(null),
+  ]);
   const assignedNames = recruiters.filter((r) => assigned.includes(r.id)).map((r) => r.name);
 
   const statusButton = (status: string, label: string) => (
@@ -53,6 +60,11 @@ export default async function OpeningPage({ params, searchParams }: { params: Pr
             <Link href={`/admin/applications?opening=${o.id}`} className="a-btn">
               Applications
             </Link>
+            {client && (
+              <Link href={`/admin/clients/${client.id}`} className="a-btn">
+                Client: {client.name}
+              </Link>
+            )}
             {can(me.role, "applications.view") && (
               <Link href={`/admin/openings/${o.id}/matches`} className="a-btn">
                 Find candidates
@@ -114,6 +126,7 @@ export default async function OpeningPage({ params, searchParams }: { params: Pr
             recruiters: assigned,
           }}
           recruiterChoices={recruiters}
+          clientNames={names}
         />
       ) : (
         <div className="card grid gap-3 p-5 text-sm">

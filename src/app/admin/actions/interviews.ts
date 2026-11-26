@@ -17,6 +17,7 @@ import {
 import { INTERVIEW_STATUS_LABELS, type InterviewStatus } from "@/lib/data/constants";
 import { setTarget } from "@/lib/data/workspace";
 import { logActivity } from "@/lib/data/activity";
+import { notify } from "@/lib/data/notifications";
 import type { ActionState } from "@/components/admin/forms";
 
 const s = (v: FormDataEntryValue | null, max = 200) => (typeof v === "string" ? v.trim().slice(0, max) : "");
@@ -59,12 +60,18 @@ export async function saveInterviewAction(_: ActionState, form: FormData): Promi
   if (before) {
     await rescheduleInterview(before.id, data, me.id);
     await logActivity(me.id, "update", "interview", before.id, `${data.round} for ${app.full_name} set for ${when(data.scheduledAt)}`);
+    // Everyone on the panel hears about a new time; people just added hear they're on it.
+    const moved = new Date(before.scheduled_at).getTime() !== new Date(data.scheduledAt).getTime();
+    const added = data.panel.filter((p) => !before.panel.some((x) => x.id === p));
+    await notify(added, me.id, "interview", `You're on the panel: ${data.round} with ${app.full_name}, ${when(data.scheduledAt)}`, `/admin/interviews/${before.id}`);
+    if (moved) await notify(data.panel.filter((p) => !added.includes(p)), me.id, "interview", `Moved: ${data.round} with ${app.full_name} is now ${when(data.scheduledAt)}`, `/admin/interviews/${before.id}`);
     refresh(applicationId, app.candidate_id, before.id);
     return { ok: true, message: "Interview updated." };
   }
   const id = await scheduleInterview(applicationId, data, me.id);
   if (!id) return { error: "This application no longer exists." };
   await logActivity(me.id, "create", "interview", id, `Scheduled ${data.round} for ${app.full_name} on ${when(data.scheduledAt)}`);
+  await notify(data.panel, me.id, "interview", `You're on the panel: ${data.round} with ${app.full_name}, ${when(data.scheduledAt)}`, `/admin/interviews/${id}`);
   refresh(applicationId, app.candidate_id, id);
   return { ok: true, message: "Interview scheduled." };
 }

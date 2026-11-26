@@ -12,6 +12,7 @@ vi.mock("next/headers", () => ({
     delete: (k: string) => jar.delete(k),
   }),
 }));
+vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 vi.mock("next/navigation", () => ({
   redirect: (to: string) => {
     throw new Error(`REDIRECT ${to}`);
@@ -51,7 +52,7 @@ describe("schema", () => {
   it("applies migrations once and records the version", async () => {
     const conn = await db();
     const rows = await conn.query<{ version: number }>(`SELECT version FROM schema_migrations ORDER BY version`);
-    expect(rows.map((r) => Number(r.version))).toEqual([1, 2, 3, 4]);
+    expect(rows.map((r) => Number(r.version))).toEqual([1, 2, 3, 4, 5]);
   });
 });
 
@@ -569,5 +570,206 @@ describe("ATS: Talent Bank, pools and matching", () => {
     const merged = await getCandidate(applicantId);
     for (const a of merged!.applications) await apps.deleteApplication(a.id);
     expect(await getCandidate(applicantId)).not.toBeNull();
+  });
+});
+
+describe("ATS: client CRM, candidate email and notifications", () => {
+  const clients = () => import("@/lib/data/clients");
+  const email = () => import("@/lib/data/email");
+  const notes = () => import("@/lib/data/notifications");
+  const tpl = () => import("@/lib/email-templates");
+  let adminId = "";
+  let salesId = "";
+  let clientId = "";
+
+  beforeAll(async () => {
+    adminId = (await users.listAdmins()).find((u) => u.role === "super_admin")!.id;
+    salesId = await users.createAdmin({ email: "sales.tester@example.test", name: "Sales Tester", role: "sales", password: "sales-pass-42", mustChange: false });
+  });
+
+  it("gives each role the right client and email rights", async () => {
+    const { can } = await import("@/lib/auth/permissions");
+    expect([can("sales", "clients.view"), can("sales", "clients.edit"), can("sales", "email.send"), can("sales", "clients.delete")]).toEqual([true, true, false, false]);
+    expect([can("recruiter", "clients.edit"), can("recruiter", "email.send"), can("recruiter", "clients.delete")]).toEqual([true, true, false]);
+    expect([can("viewer", "clients.view"), can("viewer", "email.send")]).toEqual([false, false]);
+    expect(can("super_admin", "clients.delete")).toBe(true);
+  });
+
+  it("links every opening to a client record by name, atomically, and keeps the name out of the public site", async () => {
+    const { listClients, clientOfOpening, clientOpenings, listClientEvents } = await clients();
+    const a = await openings.createOpening(openings.parseOpening({ ...opening, title: "ABAP Developer", client_name: "Acme Test Co" }).data, adminId);
+    const b = await openings.createOpening(openings.parseOpening({ ...opening, title: "Basis Lead", client_name: "acme test co" }).data, adminId);
+    const ca = await clientOfOpening(a);
+    expect(ca?.name).toBe("Acme Test Co");
+    expect((await clientOfOpening(b))?.id).toBe(ca!.id);
+    clientId = ca!.id;
+    expect((await clientOpenings(clientId)).map((o) => o.title).sort()).toEqual(["ABAP Developer", "Basis Lead"]);
+    expect((await listClientEvents(clientId)).map((e) => e.body)).toEqual(expect.arrayContaining(["Opening added: ABAP Developer", "Opening added: Basis Lead"]));
+    // Openings made earlier in this file were linked as they were created.
+    expect((await listClients({ q: "Confidential Client" }))[0]).toMatchObject({ name: "Confidential Client Ltd" });
+
+    // Clearing the client name unlinks; a new name links (and records it).
+    await openings.updateOpening(b, openings.parseOpening({ ...opening, title: "Basis Lead", client_name: "" }).data, adminId);
+    expect(await clientOfOpening(b)).toBeNull();
+    await openings.updateOpening(b, openings.parseOpening({ ...opening, title: "Basis Lead", client_name: "Acme Test Co" }).data, adminId);
+    expect((await clientOfOpening(b))?.id).toBe(clientId);
+    expect((await listClientEvents(clientId)).map((e) => e.body)).toContain("Opening linked: Basis Lead");
+
+    const pub = await openings.listPublicOpenings();
+    const json = JSON.stringify(pub);
+    expect(json).not.toContain("Acme Test Co");
+    expect(json).not.toContain("client_id");
+    expect(pub.every((o) => !("client_name" in o))).toBe(true);
+  });
+
+  it("renames a client everywhere at once, refuses duplicate names and won't delete a client with openings", async () => {
+    const { saveClient, parseClient, getClient, deleteClient, clientOpenings } = await clients();
+    const bad = parseClient({ name: "", website: "not a site" });
+    expect(Object.keys(bad.errors).sort()).toEqual(["name", "website"]);
+    const other = await saveClient(null, parseClient({ name: "Beta Test Ltd" }).data, adminId);
+    expect(other).toMatchObject({ changed: [] });
+    expect(await saveClient(null, parseClient({ name: "beta test ltd" }).data, adminId)).toBe("duplicate");
+    const res = await saveClient(clientId, parseClient({ name: "Acme Test Group", status: "active", account_manager_id: salesId, website: "acme.example.test" }).data, adminId);
+    expect(res).toMatchObject({ id: clientId, changed: ["Name", "Website", "Account manager"] });
+    expect((await getClient(clientId))?.account_manager_name).toBe("Sales Tester");
+    const ids = (await clientOpenings(clientId)).map((o) => o.id);
+    for (const id of ids) expect((await openings.getOpening(id))?.client_name).toBe("Acme Test Group");
+    expect(await deleteClient(clientId)).toBe("has_openings");
+    expect(await deleteClient((other as { id: string }).id)).toEqual({ name: "Beta Test Ltd" });
+  });
+
+  it("keeps one primary contact and logs requirements, linking one to its opening only for the same client", async () => {
+    const { addContact, parseContact, listContacts, setPrimaryContact, deleteContact, addRequirement, parseRequirement, listRequirements, setRequirementStatus, linkRequirementToOpening, listClientEvents, clientOpenings } = await clients();
+    expect(Object.keys(parseContact({ name: "A", email: "x", phone: "zz" }).errors).sort()).toEqual(["email", "name", "phone"]);
+    await addContact(clientId, parseContact({ name: "First Contact", email: "First@Example.test" }).data, adminId);
+    const second = await addContact(clientId, parseContact({ name: "Second Contact", title: "HR Manager" }).data, adminId);
+    let list = await listContacts(clientId);
+    expect(list.map((k) => [k.name, k.is_primary, k.email])).toEqual([["First Contact", true, "first@example.test"], ["Second Contact", false, ""]]);
+    await setPrimaryContact(second!, adminId);
+    list = await listContacts(clientId);
+    expect(list.filter((k) => k.is_primary).map((k) => k.name)).toEqual(["Second Contact"]);
+    await deleteContact(list[1].id, adminId);
+    expect((await listContacts(clientId)).map((k) => k.name)).toEqual(["Second Contact"]);
+
+    expect(Object.keys(parseRequirement({ title: "", positions: "0" }).errors).sort()).toEqual(["positions", "title"]);
+    const reqId = await addRequirement(clientId, parseRequirement({ title: "SAP MM Consultant", sap_module: "MM", positions: "3", needed_by: "2027-01-31" }).data, adminId);
+    expect(await addRequirement("00000000-0000-4000-8000-000000000000", parseRequirement({ title: "Ghost" }).data, adminId)).toBeNull();
+    expect(await setRequirementStatus(reqId!, "on_hold", adminId)).toBe(clientId);
+    expect(await setRequirementStatus(reqId!, "on_hold", adminId)).toBeNull();
+    expect(await setRequirementStatus(reqId!, "bogus", adminId)).toBeNull();
+
+    const foreign = await openings.createOpening(openings.parseOpening({ ...opening, title: "Other client job", client_name: "Someone Else Test" }).data, adminId);
+    expect(await linkRequirementToOpening(reqId!, foreign, adminId)).toBe(false);
+    const own = (await clientOpenings(clientId))[0].id;
+    expect(await linkRequirementToOpening(reqId!, own, adminId)).toBe(true);
+    const [req] = await listRequirements(clientId);
+    expect(req).toMatchObject({ positions: 3, status: "on_hold", needed_by: "2027-01-31", opening_id: own });
+    const bodies = (await listClientEvents(clientId)).map((e) => e.body);
+    expect(bodies).toEqual(expect.arrayContaining(["New requirement: 3 × SAP MM Consultant", "Requirement marked on hold: SAP MM Consultant", "Second Contact is now the primary contact"]));
+  });
+
+  it("turns a website enquiry into a prospect, or adds it to the client that already exists", async () => {
+    const { createClientFromEnquiry, clientForEnquiry, getClient, listContacts } = await clients();
+    const e1 = await enquiries.recordEnquiry({ name: "Enquiry Person", company: "Gamma Test Pvt", email: "enquiry.person@example.test", phone: "+91 90000 00000", service: "SAP staffing", requirement: "2 ABAP", message: "Need help." });
+    const made = await createClientFromEnquiry(e1.id, salesId);
+    expect(made?.existed).toBe(false);
+    expect(await getClient(made!.id)).toMatchObject({ name: "Gamma Test Pvt", status: "prospect", enquiry_id: e1.id });
+    expect((await listContacts(made!.id)).map((k) => [k.name, k.email, k.is_primary])).toEqual([["Enquiry Person", "enquiry.person@example.test", true]]);
+    expect((await clientForEnquiry(e1.id))?.id).toBe(made!.id);
+    const e2 = await enquiries.recordEnquiry({ name: "Another Person", company: "gamma test pvt", email: "another@example.test", phone: "", service: "", requirement: "", message: "Follow-up." });
+    const again = await createClientFromEnquiry(e2.id, salesId);
+    expect(again).toEqual({ id: made!.id, existed: true });
+    expect((await listContacts(made!.id)).map((k) => k.name)).toEqual(["Enquiry Person", "Another Person"]);
+  });
+
+  it("fills merge fields, never from the client, and builds safe mail", async () => {
+    const { renderTemplate, unfilledFields, cleanSubject, bodyToHtml } = await tpl();
+    expect(renderTemplate("Hi {{candidate_first_name}}, re {{ position }} on {{interview_date}}", { candidate_first_name: "Asha", position: "ABAP Developer" })).toBe(
+      "Hi Asha, re ABAP Developer on {{interview_date}}",
+    );
+    expect(unfilledFields("{{interview_date}} {{interview_date}} {{x_y}}")).toEqual(["interview_date", "x_y"]);
+    expect(cleanSubject("Hello\r\nBcc: someone@example.test")).toBe("Hello Bcc: someone@example.test");
+    expect(bodyToHtml('<script>alert(1)</script>\nline 2\n\npara "2"')).toContain("&lt;script&gt;alert(1)&lt;/script&gt;<br>line 2</p>");
+
+    const { composeContext } = await email();
+    const [job] = await (await clients()).clientOpenings(clientId);
+    const app = await apps.recordApplication({
+      candidate: { email: "mail.tester@example.test", fullName: "Mail Tester", phone: "" },
+      openingId: job.id,
+      source: "job",
+      position: "ABAP Developer",
+      experience: "3–5 years",
+    });
+    const { parseInterview, scheduleInterview } = await import("@/lib/data/interviews");
+    const day = new Date(Date.now() + 5.5 * 3600_000 + 3 * 86_400_000).toISOString().slice(0, 10);
+    const iv = parseInterview({ round: "Client round", date: day, time: "15:30", duration: "45", mode: "phone", location: "" }, [adminId]);
+    expect(iv.errors).toEqual({});
+    await scheduleInterview(app.id, iv.data, adminId);
+    const ctx = (await composeContext(app.candidateId, "Owner"))!;
+    expect(ctx.to).toBe("mail.tester@example.test");
+    expect(ctx.applications[0].values).toMatchObject({
+      candidate_first_name: "Mail",
+      // The opening's title, never the client's name.
+      position: job.title,
+      recruiter_name: "Owner",
+      interview_round: "Client round",
+      interview_time: "3:30 pm",
+      interview_mode: "Phone",
+    });
+    expect(ctx.applications[0].values.interview_date).toMatch(/\d{4}$/);
+    expect(JSON.stringify(ctx)).not.toMatch(/Acme Test/);
+  });
+
+  it("sends an email only to the candidate's own address and records it on the profile", async () => {
+    process.env.MAIL_TRANSPORT = "log";
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    expect((await session.signIn("owner@example.com", "correct-horse-42")).ok).toBe(true);
+    const { sendCandidateEmailAction } = await import("@/app/admin/actions/email");
+    const { getCandidate, listCandidates } = await import("@/lib/data/candidates");
+    const { listEmails, listTemplates, recordEmail } = await email();
+    const cand = (await listCandidates({ q: "mail.tester@example.test" })).rows[0];
+    const profile = (await getCandidate(cand.id))!;
+    const [template] = await listTemplates({ activeOnly: true });
+    const fd = (o: Record<string, string>) => {
+      const f = new FormData();
+      for (const [k, v] of Object.entries(o)) f.append(k, v);
+      return f;
+    };
+    const missing = await sendCandidateEmailAction({}, fd({ candidateId: cand.id, subject: "Hi", body: "Your interview is on {{interview_date}}" }));
+    expect(missing.errors?.body).toMatch(/interview_date/);
+    const wrongApp = await sendCandidateEmailAction({}, fd({ candidateId: cand.id, applicationId: "00000000-0000-4000-8000-000000000000", subject: "Hi", body: "Hello" }));
+    expect(wrongApp.error).toMatch(/isn't on this profile/);
+
+    const ok = await sendCandidateEmailAction(
+      {},
+      fd({ candidateId: cand.id, applicationId: profile.applications[0].id, templateId: template.id, to: "attacker@example.test", subject: "Next steps\nBcc: x@example.test", body: "Dear Mail,\n\nThanks." }),
+    );
+    expect(ok).toMatchObject({ ok: true, message: "Email sent to mail.tester@example.test." });
+    const logged = info.mock.calls.find((c) => c[0] === "[mail:log]")?.[1] as { to: string; subject: string; replyTo: string };
+    expect(logged).toMatchObject({ to: "mail.tester@example.test", subject: "Next steps Bcc: x@example.test", replyTo: "owner@example.com" });
+    info.mockRestore();
+
+    await recordEmail({ candidateId: cand.id, applicationId: null, templateId: null, to: cand.email, subject: "Bounced", body: "x", status: "failed", error: "smtp down", userId: adminId });
+    const sent = await listEmails(cand.id);
+    expect(sent.map((m) => [m.subject, m.status, m.template_name])).toEqual([["Bounced", "failed", null], ["Next steps Bcc: x@example.test", "sent", template.name]]);
+    const after = (await getCandidate(cand.id))!;
+    expect(after.timeline.filter((e) => e.kind === "email").map((e) => e.body)).toEqual(["Emailed: Next steps Bcc: x@example.test"]);
+    expect(after.last_contacted_at).toBeTruthy();
+    delete process.env.MAIL_TRANSPORT;
+  });
+
+  it("notifies the right people with safe links, and lets only the owner open a notification", async () => {
+    const { notify, listNotifications, unreadCount, openNotification, markAllRead, safeAdminLink } = await notes();
+    expect(safeAdminLink("https://evil.example.test/admin")).toBe("/admin");
+    expect(safeAdminLink("//evil.example.test")).toBe("/admin");
+    expect(safeAdminLink("/admin/clients/abc?x=1")).toBe("/admin/clients/abc?x=1");
+    expect(await notify([salesId, adminId, salesId, "junk"], adminId, "client", "You are now the account manager for X", "javascript:alert(1)")).toBe(1);
+    const [n] = await listNotifications(salesId);
+    expect(n).toMatchObject({ title: "You are now the account manager for X", link: "/admin", read_at: null });
+    expect(await unreadCount(salesId)).toBeGreaterThanOrEqual(1);
+    expect(await openNotification(n.id, adminId)).toBeNull();
+    expect(await openNotification(n.id, salesId)).toBe("/admin");
+    await markAllRead(salesId);
+    expect(await unreadCount(salesId)).toBe(0);
   });
 });

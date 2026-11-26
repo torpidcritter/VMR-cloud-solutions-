@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Mail, Phone } from "lucide-react";
+import { Building2, Mail, Phone } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/session";
 import { can } from "@/lib/auth/permissions";
 import { getEnquiry } from "@/lib/data/enquiries";
-import { ConfirmButton } from "@/components/admin/forms";
+import { clientForEnquiry } from "@/lib/data/clients";
+import { ConfirmButton, SubmitButton } from "@/components/admin/forms";
 import { EnquiryStatusBadge, PageHeader, Panel, formatDateTime } from "@/components/admin/ui";
 import { deleteEnquiryAction } from "../../../actions/enquiries";
+import { clientFromEnquiryAction } from "../../../actions/clients";
 import { EnquiryForm } from "./EnquiryForm";
 
 export const metadata: Metadata = { title: "Enquiry" };
@@ -17,6 +19,8 @@ export default async function EnquiryPage({ params }: { params: Promise<{ id: st
   const e = await getEnquiry((await params).id);
   if (!e) notFound();
   const editable = can(me.role, "enquiries.update");
+  const seeClients = can(me.role, "clients.view");
+  const client = seeClients ? await clientForEnquiry(e.id) : null;
   const facts: [string, string][] = [
     ["Company", e.company],
     ["Email", e.email],
@@ -45,6 +49,20 @@ export default async function EnquiryPage({ params }: { params: Promise<{ id: st
               <a href={`tel:${e.phone.replace(/[^\d+]/g, "")}`} className="a-btn">
                 <Phone aria-hidden className="size-4" /> Call
               </a>
+            )}
+            {client ? (
+              <Link href={`/admin/clients/${client.id}`} className="a-btn">
+                <Building2 aria-hidden className="size-4" /> Client: {client.name}
+              </Link>
+            ) : (
+              can(me.role, "clients.edit") && (
+                <form action={clientFromEnquiryAction}>
+                  <input type="hidden" name="id" value={e.id} />
+                  <SubmitButton className="a-btn" pendingLabel="Creating…">
+                    <Building2 aria-hidden className="size-4" /> Create client
+                  </SubmitButton>
+                </form>
+              )
             )}
           </>
         }

@@ -1,4 +1,5 @@
 import "server-only";
+import { notify } from "./notifications";
 import { db } from "@/lib/db/client";
 import { normaliseEmail } from "@/lib/auth/session";
 import { ACTIVE_SHORTLIST, APPLICATION_SOURCES, APPLICATION_STATUSES, FUNNEL_STAGES, type ApplicationSource, type ApplicationStatus } from "./constants";
@@ -59,12 +60,12 @@ export async function recordApplication(input: {
       c.employmentType ?? "",
     ],
   );
-  const [app] = await conn.query<{ id: string; number: string }>(
+  const [app] = await conn.query<{ id: string; number: string; assigned_to: string | null }>(
     // A job with exactly one assigned recruiter hands the application straight to them.
     `INSERT INTO applications (candidate_id, opening_id, source, position, experience, message, details, resume_path, resume_name, resume_size, resume_type, resume_text, resume_text_status, assigned_to)
      VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11,$12,$13,
        (SELECT min(r.user_id::text)::uuid FROM opening_recruiters r WHERE r.opening_id = $2::uuid HAVING count(*) = 1))
-     RETURNING id, number`,
+     RETURNING id, number, assigned_to`,
     [
       cand.id,
       input.openingId ?? null,
@@ -82,6 +83,7 @@ export async function recordApplication(input: {
     ],
   );
   const [{ count }] = await conn.query<{ count: number }>(`SELECT count(*)::int AS count FROM applications WHERE candidate_id = $1`, [cand.id]);
+  if (app.assigned_to) await notify([app.assigned_to], null, "application", `New application from ${c.fullName} for ${input.position}`, `/admin/applications/${app.id}`);
   return { id: app.id, number: Number(app.number), candidateId: cand.id, repeat: Number(count) > 1 };
 }
 

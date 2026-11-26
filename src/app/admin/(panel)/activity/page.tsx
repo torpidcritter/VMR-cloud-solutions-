@@ -16,6 +16,8 @@ const LINK: Record<string, (id: string) => string> = {
   candidate: (id) => `/admin/candidates/${id}`,
   interview: (id) => `/admin/interviews/${id}`,
   pool: (id) => `/admin/talent-pools/${id}`,
+  client: (id) => `/admin/clients/${id}`,
+  email_template: () => "/admin/settings/email-templates",
 };
 
 export default async function ActivityPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {

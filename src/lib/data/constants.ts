@@ -115,3 +115,11 @@ export const INTERVIEW_ROUNDS = ["Screening call", "Technical round 1", "Technic
 
 /** Today's date in India (the business runs on IST), as YYYY-MM-DD. */
 export const istToday = () => new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
+
+export const CLIENT_STATUSES = ["prospect", "active", "inactive"] as const;
+export type ClientStatus = (typeof CLIENT_STATUSES)[number];
+export const CLIENT_STATUS_LABELS: Record<ClientStatus, string> = { prospect: "Prospect", active: "Active", inactive: "Inactive" };
+
+export const REQUIREMENT_STATUSES = ["open", "on_hold", "filled", "cancelled"] as const;
+export type RequirementStatus = (typeof REQUIREMENT_STATUSES)[number];
+export const REQUIREMENT_STATUS_LABELS: Record<RequirementStatus, string> = { open: "Open", on_hold: "On hold", filled: "Filled", cancelled: "Cancelled" };
