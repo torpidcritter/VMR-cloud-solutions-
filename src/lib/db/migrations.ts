@@ -242,4 +242,49 @@ export const MIGRATIONS: { version: number; statements: string[] }[] = [
        )`,
     ],
   },
+  {
+    // ATS phase 3: resumes uploaded by admins (with extracted text), searchable
+    // text for website resumes, and talent pools.
+    version: 4,
+    statements: [
+      `CREATE TABLE candidate_files (
+         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+         candidate_id uuid NOT NULL REFERENCES candidates(id) ON DELETE CASCADE,
+         file_path text NOT NULL UNIQUE,
+         file_name text NOT NULL,
+         file_size int NOT NULL CHECK (file_size > 0),
+         file_type text NOT NULL CHECK (file_type IN ('pdf','doc','docx')),
+         text_content text NOT NULL DEFAULT '',
+         text_status text NOT NULL DEFAULT 'empty' CHECK (text_status IN ('ok','empty','failed')),
+         uploaded_by uuid REFERENCES admin_users(id) ON DELETE SET NULL,
+         created_at timestamptz NOT NULL DEFAULT now()
+       )`,
+      `CREATE INDEX candidate_files_candidate ON candidate_files(candidate_id)`,
+      `ALTER TABLE applications
+         ADD COLUMN resume_text text NOT NULL DEFAULT '',
+         ADD COLUMN resume_text_status text CHECK (resume_text_status IN ('ok','empty','failed'))`,
+      `CREATE TABLE talent_pools (
+         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+         name text NOT NULL CHECK (length(name) BETWEEN 1 AND 80),
+         description text NOT NULL DEFAULT '',
+         created_by uuid REFERENCES admin_users(id) ON DELETE SET NULL,
+         created_at timestamptz NOT NULL DEFAULT now(),
+         updated_at timestamptz NOT NULL DEFAULT now()
+       )`,
+      `CREATE UNIQUE INDEX talent_pools_name ON talent_pools(lower(name))`,
+      `CREATE TABLE talent_pool_members (
+         pool_id uuid NOT NULL REFERENCES talent_pools(id) ON DELETE CASCADE,
+         candidate_id uuid NOT NULL REFERENCES candidates(id) ON DELETE CASCADE,
+         added_by uuid REFERENCES admin_users(id) ON DELETE SET NULL,
+         added_at timestamptz NOT NULL DEFAULT now(),
+         PRIMARY KEY (pool_id, candidate_id)
+       )`,
+      `CREATE INDEX talent_pool_members_candidate ON talent_pool_members(candidate_id)`,
+      // Recruiters can put a Talent Bank candidate forward for an opening.
+      `ALTER TABLE applications DROP CONSTRAINT IF EXISTS applications_source_check`,
+      `ALTER TABLE applications ADD CONSTRAINT applications_source_check CHECK (source IN ('careers','job','cv_upload','talent'))`,
+      `ALTER TABLE application_events DROP CONSTRAINT application_events_kind_check`,
+      `ALTER TABLE application_events ADD CONSTRAINT application_events_kind_check CHECK (kind IN ('note','status','assign','edit','email','interview','task','merge','file','pool'))`,
+    ],
+  },
 ];

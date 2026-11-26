@@ -5,11 +5,14 @@ import { isMailConfigured } from "@/lib/mailer";
 import { isStorageConfigured } from "@/lib/cv-storage";
 import { Badge, PageHeader, Panel } from "@/components/admin/ui";
 import { SettingsForm } from "./SettingsForm";
+import { resumeTextCoverage } from "@/lib/data/talent";
+import { ReadResumeTextButton } from "@/components/admin/talent-ui";
 
 export const metadata: Metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
   await requireAdmin("settings.manage");
+  const coverage = await resumeTextCoverage();
   const settings = await getSettings();
   const checks: [string, boolean, string][] = [
     ["Database", true, "Connected. Applications and enquiries are saved here."],
@@ -32,6 +35,17 @@ export default async function SettingsPage() {
               </li>
             ))}
           </ul>
+        </Panel>
+        <Panel title="Resume search">
+          <p className="text-sm text-muted">
+            Resumes are read when they arrive so recruiters can search them and match them to openings. {coverage.done} of {coverage.total} resume
+            {coverage.total === 1 ? "" : "s"} sent through the website {coverage.total === 1 ? "has" : "have"} been read.
+          </p>
+          {coverage.done < coverage.total && (
+            <div className="mt-3">
+              <ReadResumeTextButton />
+            </div>
+          )}
         </Panel>
         <SettingsForm settings={settings} />
       </div>

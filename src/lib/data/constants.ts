@@ -37,12 +37,13 @@ export const CANDIDATE_PRIORITY_LABELS: Record<CandidatePriority, string> = { lo
 
 export const AVAILABILITY_OPTIONS = ["Immediately", "Within 15 days", "Within 30 days", "Within 60 days", "Within 90 days", "Not looking"] as const;
 
-export const APPLICATION_SOURCES = ["job", "careers", "cv_upload"] as const;
+export const APPLICATION_SOURCES = ["job", "careers", "cv_upload", "talent"] as const;
 export type ApplicationSource = (typeof APPLICATION_SOURCES)[number];
 export const APPLICATION_SOURCE_LABELS: Record<ApplicationSource, string> = {
   job: "Job opening",
   careers: "Careers form",
   cv_upload: "CV upload",
+  talent: "Added by recruiter",
 };
 
 export const OPENING_STATUSES = ["draft", "published", "paused", "closed"] as const;

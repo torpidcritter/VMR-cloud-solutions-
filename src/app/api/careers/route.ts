@@ -8,6 +8,7 @@ import { getLiveOpeningById } from "@/lib/data/openings";
 import { recordApplication } from "@/lib/data/applications";
 import { getSettings } from "@/lib/data/settings";
 import { saveSubmission } from "@/lib/submissions";
+import { extractResumeText } from "@/lib/resume-text";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -72,6 +73,7 @@ export async function POST(req: Request) {
       experience: data.experience,
       message: data.message,
       resume: resumeRef,
+      resumeText: resumeRef ? extractResumeText(buffer, ext) : null,
     }),
   );
 

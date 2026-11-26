@@ -29,6 +29,8 @@ export async function recordApplication(input: {
   message?: string;
   details?: Record<string, unknown>;
   resume?: ResumeRef | null;
+  /** Text read from the resume, for search and matching. */
+  resumeText?: { status: "ok" | "empty" | "failed"; text: string } | null;
 }) {
   const conn = await db();
   const c = input.candidate;
@@ -59,8 +61,8 @@ export async function recordApplication(input: {
   );
   const [app] = await conn.query<{ id: string; number: string }>(
     // A job with exactly one assigned recruiter hands the application straight to them.
-    `INSERT INTO applications (candidate_id, opening_id, source, position, experience, message, details, resume_path, resume_name, resume_size, resume_type, assigned_to)
-     VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11,
+    `INSERT INTO applications (candidate_id, opening_id, source, position, experience, message, details, resume_path, resume_name, resume_size, resume_type, resume_text, resume_text_status, assigned_to)
+     VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11,$12,$13,
        (SELECT min(r.user_id::text)::uuid FROM opening_recruiters r WHERE r.opening_id = $2::uuid HAVING count(*) = 1))
      RETURNING id, number`,
     [
@@ -75,6 +77,8 @@ export async function recordApplication(input: {
       input.resume?.name ?? null,
       input.resume?.size ?? null,
       input.resume?.type ?? null,
+      input.resume && input.resumeText ? input.resumeText.text : "",
+      input.resume && input.resumeText ? input.resumeText.status : null,
     ],
   );
   const [{ count }] = await conn.query<{ count: number }>(`SELECT count(*)::int AS count FROM applications WHERE candidate_id = $1`, [cand.id]);
@@ -294,8 +298,14 @@ export async function addApplicationNote(id: string, body: string, userId: strin
 export async function deleteApplication(id: string) {
   const conn = await db();
   const [row] = await conn.query<{ resume_path: string | null; candidate_id: string }>(`DELETE FROM applications WHERE id = $1 RETURNING resume_path, candidate_id`, [id]);
-  // A candidate whose only application was deleted goes too (data-deletion requests).
-  if (row) await conn.query(`DELETE FROM candidates c WHERE c.id = $1 AND NOT EXISTS (SELECT 1 FROM applications a WHERE a.candidate_id = c.id)`, [row.candidate_id]);
+  // A candidate whose only application was deleted goes too (data-deletion requests),
+  // unless the team stored resumes on the profile itself.
+  if (row)
+    await conn.query(
+      `DELETE FROM candidates c WHERE c.id = $1 AND NOT EXISTS (SELECT 1 FROM applications a WHERE a.candidate_id = c.id)
+          AND NOT EXISTS (SELECT 1 FROM candidate_files f WHERE f.candidate_id = c.id)`,
+      [row.candidate_id],
+    );
   return row?.resume_path ?? null;
 }
 

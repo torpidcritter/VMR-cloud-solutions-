@@ -126,7 +126,7 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
                 <p className="text-sm text-muted">A resume is on file. Your role can&apos;t download resumes.</p>
               )
             ) : (
-              <p className="text-sm text-muted">No resume stored with this application{a.source !== "cv_upload" ? " (it was sent by email)" : ""}.</p>
+              <p className="text-sm text-muted">No resume stored with this application{a.source === "talent" ? ". Resumes the team uploaded are on the candidate's profile" : a.source !== "cv_upload" ? " (it was sent by email)" : ""}.</p>
             )}
           </Panel>
 

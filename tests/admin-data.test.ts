@@ -51,7 +51,7 @@ describe("schema", () => {
   it("applies migrations once and records the version", async () => {
     const conn = await db();
     const rows = await conn.query<{ version: number }>(`SELECT version FROM schema_migrations ORDER BY version`);
-    expect(rows.map((r) => Number(r.version))).toEqual([1, 2, 3]);
+    expect(rows.map((r) => Number(r.version))).toEqual([1, 2, 3, 4]);
   });
 });
 
@@ -447,5 +447,127 @@ describe("ATS: interviews and the recruiter workspace", () => {
 
     await setTarget(recruiterId, null);
     expect(await getTarget(recruiterId)).toBeNull();
+  });
+});
+
+describe("ATS: Talent Bank, pools and matching", () => {
+  const talent = () => import("@/lib/data/talent");
+  const matching = () => import("@/lib/data/matching");
+  const candidates = () => import("@/lib/data/candidates");
+  let adminId = "";
+  let sourcedId = "";
+  let applicantId = "";
+  let fiOpeningId = "";
+  let poolId = "";
+
+  beforeAll(async () => {
+    adminId = (await users.listAdmins()).find((u) => u.role === "super_admin")!.id;
+    const { data } = openings.parseOpening({ ...opening, title: "S/4HANA FICO Lead", sap_module: "FICO", skills: "SAP FI, SAP CO, S/4HANA, Asset Accounting", location: "Bengaluru", min_experience_years: "5" });
+    fiOpeningId = await openings.createOpening(data, adminId);
+  });
+
+  it("adds a sourced candidate once, with a stored resume and its text", async () => {
+    const { parseNewCandidate, createCandidate, addCandidateFile, listCandidateFiles } = await talent();
+    const bad = parseNewCandidate({ fullName: "X", email: "nope", phone: "abc", experienceYears: "99" });
+    expect(Object.keys(bad.errors).sort()).toEqual(["email", "experienceYears", "fullName", "phone"]);
+    const { data, errors } = parseNewCandidate({ fullName: "Sourced Tester", email: "Sourced.Tester@Example.test", location: "Bengaluru", skills: "SAP FICO, S/4HANA, SAP FICO", experienceYears: "7" });
+    expect(errors).toEqual({});
+    expect(data.skills).toEqual(["SAP FICO", "S/4HANA"]);
+    sourcedId = (await createCandidate(data, adminId))!;
+    expect(sourcedId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(await createCandidate(data, adminId)).toBeNull();
+
+    const fileId = await addCandidateFile(
+      sourcedId,
+      { path: "candidates/2026/11/00000000-0000-4000-8000-000000000001/resume.pdf", name: "cv.pdf", size: 1200, type: "pdf", text: "Ten years of asset accounting and cutover on S/4 HANA.", status: "ok" },
+      adminId,
+    );
+    expect(fileId).toBeTruthy();
+    expect(await addCandidateFile("00000000-0000-0000-0000-000000000000", { path: "candidates/x", name: "x.pdf", size: 1, type: "pdf", text: "", status: "empty" }, adminId)).toBeNull();
+    const files = await listCandidateFiles(sourcedId);
+    expect(files).toHaveLength(1);
+    expect(files[0]).toMatchObject({ file_name: "cv.pdf", text_status: "ok" });
+    const c = await (await candidates()).getCandidate(sourcedId);
+    expect(c?.timeline.map((e) => e.kind)).toEqual(expect.arrayContaining(["file", "edit"]));
+  });
+
+  it("searches resume text from uploads and from website applications", async () => {
+    const a = await apps.recordApplication({
+      candidate: { email: "applicant.tester@example.test", fullName: "Applicant Tester", phone: "+91 90000 44444" },
+      source: "careers",
+      position: "SAP CO Consultant",
+      experience: "3–5 years",
+      resume: { path: "applications/2026/11/00000000-0000-4000-8000-000000000002/resume.pdf", name: "cv.pdf", size: 900, type: "application/pdf" },
+      resumeText: { status: "ok", text: "Product costing, SAP CO and S4HANA reporting in Pune." },
+    });
+    applicantId = (await apps.getApplication(a.id))!.candidate_id;
+    const { listCandidates } = await candidates();
+    const names = async (resume: string) => (await listCandidates({ resume })).rows.map((r) => r.full_name).sort();
+    expect(await names("S/4HANA")).toEqual(["Applicant Tester", "Sourced Tester"]);
+    expect(await names('"asset accounting" cutover')).toEqual(["Sourced Tester"]);
+    expect(await names("costing")).toEqual(["Applicant Tester"]);
+    expect(await names("payroll")).toEqual([]);
+    // Resumes on file show in the list for both.
+    expect((await listCandidates({ resume: "S4HANA" })).rows.every((r) => r.has_resume)).toBe(true);
+    expect((await listCandidates({ contacted: "never", resume: "costing" })).total).toBe(1);
+  });
+
+  it("keeps pools unique by name, adds members once and logs each change", async () => {
+    const { savePool, addToPool, removeFromPool, poolsForCandidate, getPool, deletePool } = await talent();
+    poolId = (await savePool(null, { name: "FICO Bengaluru", description: "" }, adminId)) as string;
+    expect(await savePool(null, { name: "fico bengaluru", description: "" }, adminId)).toBe("duplicate");
+    expect(await addToPool(poolId, [sourcedId, applicantId, sourcedId, "not-a-uuid"], adminId)).toBe(2);
+    expect(await addToPool(poolId, [sourcedId], adminId)).toBe(0);
+    expect((await getPool(poolId))?.members).toBe(2);
+    expect((await (await candidates()).listCandidates({ pool: poolId })).total).toBe(2);
+    expect(await removeFromPool(poolId, applicantId, adminId)).toBe(true);
+    expect(await removeFromPool(poolId, applicantId, adminId)).toBe(false);
+    expect((await poolsForCandidate(sourcedId)).map((p) => p.name)).toEqual(["FICO Bengaluru"]);
+    const timeline = (await (await candidates()).getCandidate(applicantId))!.timeline.filter((e) => e.kind === "pool").map((e) => e.body);
+    expect(timeline).toEqual(["Removed from the talent pool FICO Bengaluru", "Added to the talent pool FICO Bengaluru"]);
+    const temp = (await savePool(null, { name: "Temporary", description: "" }, adminId)) as string;
+    await addToPool(temp, [sourcedId], adminId);
+    expect(await deletePool(temp)).toBe("Temporary");
+    expect((await poolsForCandidate(sourcedId)).map((p) => p.name)).toEqual(["FICO Bengaluru"]);
+  });
+
+  it("ranks Talent Bank candidates for an opening with reasons, and puts one forward once", async () => {
+    const { matchCandidatesForOpening, matchOpeningsForCandidate, addCandidateToOpening } = await matching();
+    const r = (await matchCandidatesForOpening(fiOpeningId))!;
+    expect(r.terms).toEqual(["SAP FI", "SAP CO", "S/4HANA", "Asset Accounting", "FICO"]);
+    const [best] = r.matches;
+    const next = r.matches.find((m) => m.full_name === "Applicant Tester")!;
+    expect(best.full_name).toBe("Sourced Tester");
+    expect(best.match.reasons.filter((x) => x.ok).map((x) => x.text)).toEqual(
+      expect.arrayContaining(["Has SAP FI, SAP CO, S/4HANA (3 of 4 skills)", "Resume mentions Asset Accounting", "7 yrs experience (needs 5+)", "Bengaluru works for them"]),
+    );
+    expect(next.match.score).toBeLessThan(best.match.score);
+    expect(next.match.reasons).toContainEqual({ ok: true, text: "Resume mentions SAP CO, S/4HANA" });
+
+    const first = await addCandidateToOpening(sourcedId, fiOpeningId, adminId);
+    expect(first?.created).toBe(true);
+    const again = await addCandidateToOpening(sourcedId, fiOpeningId, adminId);
+    expect(again).toEqual({ id: first!.id, created: false });
+    const app = await apps.getApplication(first!.id);
+    expect(app).toMatchObject({ source: "talent", status: "new", assigned_to: adminId, position: "S/4HANA FICO Lead" });
+
+    // Once in the pipeline they are no longer suggested, and the opening shows as applied on their profile.
+    const after = (await matchCandidatesForOpening(fiOpeningId))!;
+    expect(after.applied).toBe(1);
+    expect(after.matches.map((m) => m.full_name)).not.toContain("Sourced Tester");
+    const forThem = await matchOpeningsForCandidate(sourcedId);
+    expect(forThem.find((o) => o.id === fiOpeningId)?.applied).toBe(true);
+  });
+
+  it("carries resumes and pools through a merge, and keeps a profile with uploads when its last application goes", async () => {
+    const { listCandidateFiles, poolsForCandidate, addToPool } = await talent();
+    const { mergeCandidates, getCandidate } = await candidates();
+    await addToPool(poolId, [applicantId], adminId);
+    expect(await mergeCandidates(applicantId, sourcedId, adminId)).toBe(true);
+    expect(await listCandidateFiles(applicantId)).toHaveLength(1);
+    expect((await poolsForCandidate(applicantId)).map((p) => p.name)).toEqual(["FICO Bengaluru"]);
+    const merged = await getCandidate(applicantId);
+    for (const a of merged!.applications) await apps.deleteApplication(a.id);
+    expect(await getCandidate(applicantId)).not.toBeNull();
   });
 });

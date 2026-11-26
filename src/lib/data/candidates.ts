@@ -1,4 +1,5 @@
 import "server-only";
+import { pgTermRegex, termPattern } from "@/lib/matching";
 import { db, type Statement } from "@/lib/db/client";
 import { APPLICATION_STATUSES, AVAILABILITY_OPTIONS, CANDIDATE_PRIORITIES, type ApplicationStatus, type CandidatePriority } from "./constants";
 
@@ -333,6 +334,12 @@ export async function mergeCandidates(keepId: string, dropId: string, userId: st
     },
     { text: `UPDATE applications SET candidate_id = $1 WHERE candidate_id = $2`, params: [keepId, dropId] },
     { text: `UPDATE application_events SET candidate_id = $1 WHERE candidate_id = $2`, params: [keepId, dropId] },
+    { text: `UPDATE candidate_files SET candidate_id = $1 WHERE candidate_id = $2`, params: [keepId, dropId] },
+    {
+      text: `INSERT INTO talent_pool_members (pool_id, candidate_id, added_by, added_at)
+             SELECT pool_id, $1, added_by, added_at FROM talent_pool_members WHERE candidate_id = $2 ON CONFLICT DO NOTHING`,
+      params: [keepId, dropId],
+    },
     { text: `DELETE FROM candidates WHERE id = $1`, params: [dropId] },
     {
       text: `INSERT INTO application_events (candidate_id, user_id, kind, body, details) VALUES ($1, $2, 'merge', $3, $4::jsonb)`,
@@ -359,6 +366,11 @@ export type CandidateFilters = {
   availability?: string;
   stage?: string;
   specialisation?: string;
+  /** Words that must all appear in one of the candidate's resumes. */
+  resume?: string;
+  pool?: string;
+  /** "never", or a number of days since the last contact. */
+  contacted?: string;
 };
 
 export type CandidateRow = Candidate & {
@@ -368,6 +380,16 @@ export type CandidateRow = Candidate & {
   latest_position: string | null;
   has_resume: boolean;
 };
+
+/** Search words for resume text: quoted phrases stay together; at most 6. */
+export function resumeWords(q: string) {
+  const out: string[] = [];
+  for (const m of q.slice(0, 200).matchAll(/"([^"]+)"|([^\s,]+)/g)) {
+    const w = (m[1] ?? m[2]).trim();
+    if (termPattern(w)) out.push(w);
+  }
+  return out.slice(0, 6);
+}
 
 export function candidateWhere(f: CandidateFilters, today = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10)) {
   const params: unknown[] = [];
@@ -400,6 +422,15 @@ export function candidateWhere(f: CandidateFilters, today = new Date(Date.now() 
   if (f.availability && (AVAILABILITY_OPTIONS as readonly string[]).includes(f.availability)) add((n) => `c.availability = $${n}`, f.availability);
   if (f.stage && (APPLICATION_STATUSES as readonly string[]).includes(f.stage)) add((n) => `EXISTS (SELECT 1 FROM applications a WHERE a.candidate_id = c.id AND a.status = $${n})`, f.stage);
   if (f.specialisation?.trim()) add((n) => `c.specialisation = $${n}`, f.specialisation.trim());
+  for (const word of resumeWords(f.resume ?? ""))
+    add(
+      (n) => `(EXISTS (SELECT 1 FROM candidate_files cf WHERE cf.candidate_id = c.id AND cf.text_content ~* $${n})
+               OR EXISTS (SELECT 1 FROM applications ra WHERE ra.candidate_id = c.id AND ra.resume_text ~* $${n}))`,
+      pgTermRegex(word),
+    );
+  if (isUuid(f.pool)) add((n) => `EXISTS (SELECT 1 FROM talent_pool_members m WHERE m.candidate_id = c.id AND m.pool_id = $${n})`, f.pool);
+  if (f.contacted === "never") where.push(`c.last_contacted_at IS NULL`);
+  else if (/^\d{1,3}$/.test(f.contacted ?? "")) add((n) => `(c.last_contacted_at IS NULL OR c.last_contacted_at < now() - ($${n}::int * interval '1 day'))`, Number(f.contacted));
   return { sql: where.length ? `WHERE ${where.join(" AND ")}` : "", params };
 }
 
@@ -419,7 +450,7 @@ export async function listCandidates(f: CandidateFilters, { page = 1, pageSize =
     `SELECT ${COLS},
             (SELECT count(*)::int FROM applications a WHERE a.candidate_id = c.id) AS applications,
             l.id AS latest_application_id, l.status AS latest_status, l.position AS latest_position,
-            EXISTS (SELECT 1 FROM applications a WHERE a.candidate_id = c.id AND a.resume_path IS NOT NULL) AS has_resume
+            (EXISTS (SELECT 1 FROM applications a WHERE a.candidate_id = c.id AND a.resume_path IS NOT NULL) OR EXISTS (SELECT 1 FROM candidate_files f WHERE f.candidate_id = c.id)) AS has_resume
        FROM candidates c
        LEFT JOIN admin_users ow ON ow.id = c.owner_id
        LEFT JOIN LATERAL (SELECT id, status, position FROM applications a WHERE a.candidate_id = c.id ORDER BY submitted_at DESC LIMIT 1) l ON true

@@ -53,6 +53,11 @@ export default async function OpeningPage({ params, searchParams }: { params: Pr
             <Link href={`/admin/applications?opening=${o.id}`} className="a-btn">
               Applications
             </Link>
+            {can(me.role, "applications.view") && (
+              <Link href={`/admin/openings/${o.id}/matches`} className="a-btn">
+                Find candidates
+              </Link>
+            )}
             {o.status === "published" && (
               <a href={`/careers/${o.slug}`} target="_blank" rel="noreferrer" className="a-btn">
                 View on website

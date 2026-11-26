@@ -32,7 +32,7 @@ describe("migration 2 on existing data", () => {
     const { db } = await import("@/lib/db/client");
     const conn = await db();
     const versions = await conn.query<{ version: number }>(`SELECT version FROM schema_migrations ORDER BY version`);
-    expect(versions.map((v) => Number(v.version))).toEqual([1, 2, 3]);
+    expect(versions.map((v) => Number(v.version))).toEqual([1, 2, 3, 4]);
 
     const apps = await conn.query<{ status: string; stage_changed_at: string | null; assigned_to: string | null }>(`SELECT status, stage_changed_at, assigned_to FROM applications ORDER BY number`);
     expect(apps.map((r) => r.status)).toEqual(["new", "screening", "interview_scheduled", "offer_released", "hired"]);

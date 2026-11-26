@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Paperclip, Users } from "lucide-react";
+import { Paperclip, UserPlus, Users } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/session";
+import { can } from "@/lib/auth/permissions";
+import { listPools } from "@/lib/data/talent";
+import { AddMatchingToPool } from "@/components/admin/talent-ui";
 import { candidateFacets, listCandidates, type CandidateFilters } from "@/lib/data/candidates";
 import { recruiterOptions } from "@/lib/data/applications";
 import { APPLICATION_STATUSES, APPLICATION_STATUS_LABELS, AVAILABILITY_OPTIONS, CANDIDATE_PRIORITIES, CANDIDATE_PRIORITY_LABELS } from "@/lib/data/constants";
@@ -12,7 +15,7 @@ export const metadata: Metadata = { title: "Candidates" };
 
 const PAGE_SIZE = 25;
 const one = (v: unknown) => (typeof v === "string" ? v.slice(0, 120) : undefined);
-const KEYS = ["q", "skill", "tag", "priority", "owner", "followUp", "minYears", "maxYears", "location", "availability", "stage", "specialisation"] as const;
+const KEYS = ["q", "skill", "resume", "pool", "tag", "priority", "owner", "followUp", "contacted", "minYears", "maxYears", "location", "availability", "stage", "specialisation"] as const;
 
 export default async function CandidatesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const me = await requireAdmin("applications.view");
@@ -21,7 +24,8 @@ export default async function CandidatesPage({ searchParams }: { searchParams: P
   const f: CandidateFilters = { ...search, owner: search.owner === "me" ? me.id : search.owner };
   const sort = one(sp.sort) ?? "updated";
   const page = Math.max(1, Number(one(sp.page)) || 1);
-  const [{ rows, total }, facets, recruiters] = await Promise.all([listCandidates(f, { page, pageSize: PAGE_SIZE, sort }), candidateFacets(), recruiterOptions()]);
+  const [{ rows, total }, facets, recruiters, pools] = await Promise.all([listCandidates(f, { page, pageSize: PAGE_SIZE, sort }), candidateFacets(), recruiterOptions(), listPools()]);
+  const canPool = can(me.role, "talent.manage");
   const filtered = Object.values(search).some(Boolean);
   const today = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
   const current = { ...search, sort: sort === "updated" ? undefined : sort };
@@ -45,7 +49,17 @@ export default async function CandidatesPage({ searchParams }: { searchParams: P
 
   return (
     <>
-      <PageHeader title="Candidates" description="The talent bank: one profile per person, built from every application and CV upload, with skills, tags, owner and follow-ups." />
+      <PageHeader
+        title="Candidates"
+        description="The Talent Bank: one profile per person, built from every application and CV upload, with skills, resumes, pools and follow-ups."
+        actions={
+          can(me.role, "candidates.edit") ? (
+            <Link href="/admin/candidates/new" className="a-btn a-btn-primary">
+              <UserPlus aria-hidden className="size-4" /> Add candidate
+            </Link>
+          ) : undefined
+        }
+      />
       <form className="card grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-6" role="search">
         <div className="lg:col-span-2">
           <label htmlFor="q" className="a-label">
@@ -64,9 +78,17 @@ export default async function CandidatesPage({ searchParams }: { searchParams: P
             ))}
           </datalist>
         </div>
+        <div className="lg:col-span-2">
+          <label htmlFor="resume" className="a-label">
+            Resume contains
+          </label>
+          <input id="resume" name="resume" defaultValue={search.resume} placeholder='e.g. cutover "asset accounting"' className="a-field" />
+        </div>
+        {select("pool", "Talent pool", pools.map((p) => ({ value: p.id, label: p.name })), search.pool)}
         {select("tag", "Tag", plain(facets.tags), search.tag)}
         {select("priority", "Priority", CANDIDATE_PRIORITIES.map((p) => ({ value: p, label: CANDIDATE_PRIORITY_LABELS[p] })), search.priority)}
         {select("owner", "Owner", [{ value: "me", label: "Me" }, { value: "none", label: "No owner" }, ...recruiters.map((r) => ({ value: r.id, label: r.name }))], search.owner, "Anyone")}
+        {select("contacted", "Last contacted", [{ value: "never", label: "Never" }, { value: "30", label: "Not in 30 days" }, { value: "90", label: "Not in 90 days" }, { value: "180", label: "Not in 6 months" }], search.contacted, "Any time")}
         {select("followUp", "Follow-up", [{ value: "due", label: "Due today or overdue" }, { value: "week", label: "Due within 7 days" }, { value: "any", label: "Has a follow-up date" }], search.followUp)}
         <div className="grid grid-cols-2 gap-2">
           <div>
@@ -113,10 +135,13 @@ export default async function CandidatesPage({ searchParams }: { searchParams: P
         </div>
       </form>
 
-      <p className="mt-5 text-sm text-muted">
-        {total.toLocaleString("en-IN")} candidate{total === 1 ? "" : "s"}
-        {filtered ? " match" : ""}
-      </p>
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted">
+          {total.toLocaleString("en-IN")} candidate{total === 1 ? "" : "s"}
+          {filtered ? " match" : ""}
+        </p>
+        {canPool && filtered && total > 0 && pools.length > 0 && <AddMatchingToPool pools={pools} filters={search} total={total} />}
+      </div>
       <div className="mt-2">
         {rows.length ? (
           <div className="card overflow-x-auto">
@@ -147,6 +172,7 @@ export default async function CandidatesPage({ searchParams }: { searchParams: P
                       )}
                       <div className="text-xs text-muted">{c.email}</div>
                       <div className="text-xs text-muted">{[c.phone, c.location].filter(Boolean).join(" · ")}</div>
+                      <div className="text-xs text-muted">{c.last_contacted_at ? `Contacted ${formatDate(c.last_contacted_at)}` : "Not contacted yet"}</div>
                     </td>
                     <td className="min-w-40">
                       {c.current_title || c.specialisation || <span className="text-muted">—</span>}

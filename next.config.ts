@@ -13,6 +13,8 @@ const nextConfig: NextConfig = {
   // The embedded Postgres used for local development loads its own WebAssembly files.
   serverExternalPackages: ["@electric-sql/pglite"],
   images: { formats: ["image/avif", "image/webp"] },
+  // Admins upload resumes (up to 4 MB) through server actions; the default limit is 1 MB.
+  experimental: { serverActions: { bodySizeLimit: "5mb" } },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

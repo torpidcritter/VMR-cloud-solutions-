@@ -24,7 +24,13 @@ const NAV: { label: string; items: (NavItem & { perm: Permission })[] }[] = [
       { href: "/admin/interviews", label: "Interviews", icon: "interviews", perm: "applications.view" },
     ],
   },
-  { label: "People", items: [{ href: "/admin/candidates", label: "Candidates", icon: "candidates", perm: "applications.view" }] },
+  {
+    label: "People",
+    items: [
+      { href: "/admin/candidates", label: "Candidates", icon: "candidates", perm: "applications.view" },
+      { href: "/admin/talent-pools", label: "Talent pools", icon: "pools", perm: "applications.view" },
+    ],
+  },
   {
     label: "Business",
     items: [

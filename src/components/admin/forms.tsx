@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, startTransition, useActionState, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, startTransition, useActionState, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import { toast } from "./Toaster";
 
@@ -40,11 +40,20 @@ export function ActionForm({
   className?: string;
   resetOnSuccess?: boolean;
 }) {
-  const [state, formAction, pending] = useActionState(action, {});
+  // The toast is raised as soon as the action answers, so it still shows when
+  // the refreshed page no longer renders this form (an item that moved away).
+  const withToast = useCallback(
+    async (prev: ActionState, form: FormData) => {
+      const next = await action(prev, form);
+      if (next?.ok && next.message && !next.persist) toast(next.message);
+      return next;
+    },
+    [action],
+  );
+  const [state, formAction, pending] = useActionState(withToast, {});
   const ref = useRef<HTMLFormElement>(null);
   useEffect(() => {
     if (state.ok && resetOnSuccess) ref.current?.reset();
-    if (state.ok && state.message && !state.persist) toast(state.message);
   }, [state, resetOnSuccess]);
   return (
     <form

@@ -8,6 +8,7 @@ import { isDbConfigured } from "@/lib/db/client";
 import { recordApplication } from "@/lib/data/applications";
 import { getSettings } from "@/lib/data/settings";
 import { saveSubmission } from "@/lib/submissions";
+import { extractResumeText } from "@/lib/resume-text";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -102,6 +103,7 @@ export async function POST(req: Request) {
       experience: data.experience,
       details: { employmentType: data.employmentType, preferredLocation: data.preferredLocation, consentVersion: CONSENT_VERSION, consentAt: submittedAt, reference: stored.id },
       resume: { path: stored.cvPath, name: file!.name.slice(0, 180), size: buffer.length, type: CV_MIME[ext] },
+      resumeText: extractResumeText(buffer, ext),
     }),
   );
   const settings = await getSettings();

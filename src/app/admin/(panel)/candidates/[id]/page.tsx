@@ -1,18 +1,22 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CheckCircle2, Download, ExternalLink, Eye, Mail, Pencil, Phone, Users } from "lucide-react";
+import { CheckCircle2, Download, ExternalLink, Eye, Mail, Pencil, Phone, Trash2, Users, X } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/session";
 import { can } from "@/lib/auth/permissions";
 import { getCandidate } from "@/lib/data/candidates";
 import { recruiterOptions } from "@/lib/data/applications";
 import { listInterviews } from "@/lib/data/interviews";
+import { listCandidateFiles, listPools, poolsForCandidate } from "@/lib/data/talent";
+import { matchOpeningsForCandidate } from "@/lib/data/matching";
+import { AddToPoolForm, MatchReasons, PutForwardButton, ScoreRing, UploadResumeForm } from "@/components/admin/talent-ui";
 import { InterviewList } from "@/components/admin/interview-ui";
 import { APPLICATION_SOURCE_LABELS, CANDIDATE_PRIORITIES, CANDIDATE_PRIORITY_LABELS } from "@/lib/data/constants";
 import { ConfirmButton, SubmitButton } from "@/components/admin/forms";
 import { ApplicationStatusBadge, Badge, Notice, PageHeader, Panel, formatDate, formatDateTime } from "@/components/admin/ui";
 import { EVENT_KIND_LABELS, EventText, PriorityBadge, TagList, eventTone } from "@/components/admin/candidate-ui";
 import { mergeCandidatesAction, quickCandidateAction } from "../../../actions/candidates";
+import { deleteCandidateFileAction, removeFromPoolAction } from "../../../actions/talent";
 import { CandidateNoteForm } from "./CandidateNoteForm";
 import { ProfileForm } from "./ProfileForm";
 import { QuickField } from "./QuickField";
@@ -20,7 +24,7 @@ import { QuickField } from "./QuickField";
 export const metadata: Metadata = { title: "Candidate" };
 
 const one = (v: unknown) => (typeof v === "string" ? v.slice(0, 40) : undefined);
-const KINDS = ["note", "status", "interview", "assign", "edit", "merge"] as const;
+const KINDS = ["note", "status", "interview", "assign", "edit", "file", "pool", "merge"] as const;
 
 export default async function CandidatePage({
   params,
@@ -38,7 +42,17 @@ export default async function CandidatePage({
   const canDownload = can(me.role, "resumes.download");
   const editing = editable && one(sp.edit) === "1";
   const kind = (KINDS as readonly string[]).includes(one(sp.kind) ?? "") ? one(sp.kind) : undefined;
-  const [recruiters, interviews] = await Promise.all([editable ? recruiterOptions() : Promise.resolve([]), listInterviews({ candidateId: c.id }, 50)]);
+  const canPool = can(me.role, "talent.manage");
+  const canForward = can(me.role, "applications.update");
+  const [recruiters, interviews, files, pools, allPools, matches] = await Promise.all([
+    editable ? recruiterOptions() : Promise.resolve([]),
+    listInterviews({ candidateId: c.id }, 50),
+    listCandidateFiles(c.id),
+    poolsForCandidate(c.id),
+    canPool ? listPools() : Promise.resolve([]),
+    matchOpeningsForCandidate(c.id, 5),
+  ]);
+  const freePools = allPools.filter((p) => !pools.some((x) => x.id === p.id));
   const today = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
   const followDue = !!c.follow_up_on && c.follow_up_on <= today;
   const timeline = kind ? c.timeline.filter((e) => e.kind === kind) : c.timeline;
@@ -102,6 +116,8 @@ export default async function CandidatePage({
         }
       />
 
+      {one(sp.created) === "1" && <Notice tone="green">Added to the Talent Bank.</Notice>}
+      {one(sp.resume) === "failed" && <Notice tone="red">The profile was added, but the resume couldn&apos;t be stored. Try uploading it again below.</Notice>}
       {one(sp.merged) === "1" && <Notice tone="green">The duplicate profile was merged into this one. Its applications and history are listed below.</Notice>}
 
       {/* Ownership and follow-up, always in view */}
@@ -301,14 +317,46 @@ export default async function CandidatePage({
 
         <div className="grid min-w-0 content-start gap-6">
           <Panel title="Resumes" bodyClass="">
-            {resumes.length ? (
+            {resumes.length || files.length ? (
               canDownload ? (
                 <ul className="divide-y divide-line">
+                  {files.map((f) => (
+                    <li key={f.id} className="flex flex-wrap items-center gap-2 px-5 py-3 text-sm">
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-medium">{f.file_name}</span>
+                        <span className="text-xs text-muted">
+                          Uploaded {formatDate(f.created_at)}
+                          {f.uploaded_by_name ? ` by ${f.uploaded_by_name}` : ""} · {f.text_status === "ok" ? "searchable" : "no text found"}
+                        </span>
+                      </span>
+                      {f.file_type === "pdf" && (
+                        <a href={`/admin/api/candidate-files/${f.id}?view=1`} target="_blank" rel="noreferrer" className="a-btn" aria-label={`View ${f.file_name}`}>
+                          <Eye aria-hidden className="size-4" />
+                        </a>
+                      )}
+                      <a href={`/admin/api/candidate-files/${f.id}`} className="a-btn" aria-label={`Download ${f.file_name}`}>
+                        <Download aria-hidden className="size-4" />
+                      </a>
+                      {editable && (
+                        <ConfirmButton
+                          action={deleteCandidateFileAction}
+                          hidden={{ id: f.id }}
+                          className="a-btn"
+                          title="Delete this resume?"
+                          confirmLabel="Delete resume"
+                          confirm={`${f.file_name} will be removed from storage and from resume search. This can't be undone.`}
+                        >
+                          <Trash2 aria-hidden className="size-4" />
+                          <span className="sr-only">Delete {f.file_name}</span>
+                        </ConfirmButton>
+                      )}
+                    </li>
+                  ))}
                   {resumes.map((a) => (
                     <li key={a.id} className="flex flex-wrap items-center gap-2 px-5 py-3 text-sm">
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-medium">{a.opening_title ?? a.position}</span>
-                        <span className="text-xs text-muted">Received {formatDate(a.submitted_at)}</span>
+                        <span className="text-xs text-muted">Sent with application #{a.number} · {formatDate(a.submitted_at)}</span>
                       </span>
                       <a href={`/admin/api/resume/${a.id}?view=1`} target="_blank" rel="noreferrer" className="a-btn" aria-label={`View resume from ${formatDate(a.submitted_at)}`}>
                         <Eye aria-hidden className="size-4" />
@@ -324,6 +372,82 @@ export default async function CandidatePage({
               )
             ) : (
               <p className="px-5 py-4 text-sm text-muted">No resume stored for this candidate.</p>
+            )}
+            {editable && (
+              <div className="border-t border-line px-5 py-4">
+                <UploadResumeForm candidateId={c.id} />
+              </div>
+            )}
+          </Panel>
+
+          <Panel title="Matching openings" bodyClass="">
+            {matches.length ? (
+              <ul className="divide-y divide-line">
+                {matches.map((m) => (
+                  <li key={m.id} className="flex gap-3 px-5 py-3 text-sm">
+                    <ScoreRing score={m.match.score} />
+                    <div className="min-w-0 flex-1">
+                      <Link href={`/admin/openings/${m.id}`} className="font-medium hover:text-brand-600">
+                        {m.title}
+                      </Link>
+                      <span className="block text-xs text-muted">
+                        {[m.location, m.status === "paused" ? "Paused" : ""].filter(Boolean).join(" · ")}
+                      </span>
+                      <MatchReasons match={m.match} />
+                      <div className="mt-2">
+                        {m.applied ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs text-muted">
+                            <CheckCircle2 aria-hidden className="size-3.5 text-emerald-600" /> Already in this pipeline
+                          </span>
+                        ) : (
+                          canForward && <PutForwardButton candidateId={c.id} openingId={m.id} />
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="px-5 py-4 text-sm text-muted">No open role matches this profile&apos;s skills yet. Adding skills or a resume helps.</p>
+            )}
+          </Panel>
+
+          <Panel title="Talent pools" bodyClass="">
+            {pools.length ? (
+              <ul className="flex flex-wrap gap-2 px-5 py-4">
+                {pools.map((p) => (
+                  <li key={p.id} className="inline-flex items-center gap-1 rounded-full border border-line bg-surface py-0.5 pl-3 pr-1 text-sm">
+                    <Link href={`/admin/talent-pools/${p.id}`} className="hover:text-brand-600">
+                      {p.name}
+                    </Link>
+                    {canPool && (
+                      <form action={removeFromPoolAction}>
+                        <input type="hidden" name="poolId" value={p.id} />
+                        <input type="hidden" name="candidateId" value={c.id} />
+                        <button className="grid size-6 place-items-center rounded-full text-muted hover:bg-surface-2 hover:text-ink" aria-label={`Remove from ${p.name}`}>
+                          <X aria-hidden className="size-3.5" />
+                        </button>
+                      </form>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="px-5 py-4 text-sm text-muted">Not in any talent pool.</p>
+            )}
+            {canPool && (
+              <div className="border-t border-line px-5 py-4">
+                {freePools.length ? (
+                  <AddToPoolForm candidateId={c.id} pools={freePools} />
+                ) : (
+                  <p className="text-sm text-muted">
+                    {allPools.length ? "In every pool already. " : "No pools yet. "}
+                    <Link href="/admin/talent-pools" className="font-medium text-brand-600 hover:underline">
+                      Manage talent pools
+                    </Link>
+                  </p>
+                )}
+              </div>
             )}
           </Panel>
 

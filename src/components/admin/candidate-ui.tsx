@@ -41,6 +41,7 @@ export function EventText({ e }: { e: { kind: string; body: string; from_status:
     case "edit": {
       const changes = (e.details?.changes ?? {}) as Record<string, [unknown, unknown]>;
       const keys = Object.keys(changes);
+      if (e.details?.created) return <p className="mt-1">{e.body}</p>;
       if (!keys.length) return <p className="mt-1">Updated {e.body}</p>;
       return (
         <ul className="mt-1 grid gap-0.5">
@@ -66,6 +67,8 @@ export const EVENT_KIND_LABELS: Record<string, string> = {
   interview: "Interview",
   task: "Task",
   merge: "Merge",
+  file: "Resume",
+  pool: "Talent pool",
 };
 
 /** Badge colour for each kind of history entry. */
