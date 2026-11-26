@@ -80,16 +80,24 @@ Recruitment admin for job openings, applications, the talent bank and enquiries.
 3. Open `/admin/setup`, enter the key and create the first **Super Admin**. The page stops working once an admin exists.
 4. Add colleagues under **Users**. They get a temporary password and must choose their own at first sign-in.
 
-**What's inside:** dashboard with live counts and a 12-week chart; job openings (draft, publish, pause, close, duplicate, delete) that appear on `/careers` and get their own `/careers/<slug>` page with Google job-posting data; applications with date ranges, filters, status, notes, other applications from the same person, secure resume download and CSV export; talent bank (one profile per email); enquiries with follow-up notes; users and roles; settings (notification emails, careers page fallback); activity log.
+**What's inside:**
 
-**Security:** scrypt-hashed passwords, httpOnly session cookie (8 hours), lockout after 5 wrong passwords, per-IP limit on sign-in, roles checked on the server for every page, action and download. Client names on openings are never sent to the public site. Resumes stay in private storage and are streamed only to signed-in admins with the right role. `/admin` is excluded from search engines.
+- **Recruitment:** dashboard and My work; Kanban pipeline with ten stages; applications with filters, notes, recruiter assignment and bulk actions (stage, assign, tag, follow-up, resume ZIP, CSV of a selection); interviews with panels, feedback, calendar files and email reminders; tasks with due dates and daily in-app reminders.
+- **People:** one candidate profile per email with a full timeline and field-level change history, duplicate merge, uploaded resumes that are read for search, Talent Bank and talent pools, rule-based matching to openings that shows its reasons, and email from templates.
+- **Business:** job openings that appear on `/careers` (client names never reach the public site); clients with contacts, requirements and history; enquiries that can become clients.
+- **Analytics:** conversion by stage, time to hire, first response, results by source, opening, recruiter and client, skill demand, all with date ranges and CSV export.
+- **Admin:** users and roles, settings, email templates, in-app notifications, and an audit log of changes, record views and every sign-in attempt, with filters, CSV export and a retention period.
+
+**Daily job:** `vercel.json` calls `/api/cron/reminders` once a day. Set `CRON_SECRET` (16+ characters) in Vercel so it can run. It sends interview reminders (needs SMTP), posts task and follow-up reminders, and deletes audit entries older than the retention period set in Settings.
+
+**Security:** scrypt-hashed passwords, httpOnly session cookie (8 hours), lockout after 5 wrong passwords, per-IP limit on sign-in, roles checked on the server for every page, action and download. Client names on openings are never sent to the public site. Resumes stay in private storage and are streamed only to signed-in admins with the right role. Downloads of a selection only accept requests from the admin pages themselves. `/admin` is excluded from search engines.
 
 | Role | Can do |
 | --- | --- |
-| Super Admin | Everything, including users, settings and deleting records |
-| Recruiter / HR | Openings (incl. client names), applications, resumes, CSV export; view enquiries |
-| Sales (SAP Practice) | Update enquiries; view openings and applications; download resumes |
-| Viewer | Read-only dashboard, openings, applications, enquiries |
+| Super Admin | Everything, including users, settings, the audit log and deleting records |
+| Recruiter / HR | Openings (incl. client names), candidates, pipeline, interviews, clients, emails to candidates, bulk actions, analytics, resumes and CSV export |
+| Sales (SAP Practice) | Clients and enquiries; view openings and applications; tasks; analytics without client-opening links; download resumes |
+| Viewer | Read-only dashboard, openings, applications, enquiries; their own tasks |
 
 **Local development:** `DB_DRIVER=pglite PGLITE_DIR=./.data/pglite ADMIN_SETUP_KEY=dev npm run dev` runs an embedded Postgres, no server needed.
 

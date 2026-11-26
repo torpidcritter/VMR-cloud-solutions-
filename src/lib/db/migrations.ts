@@ -429,4 +429,23 @@ export const MIGRATIONS: { version: number; statements: string[] }[] = [
       `ALTER TABLE client_events ADD CONSTRAINT client_events_kind_check CHECK (kind IN ('note','edit','contact','requirement','opening','task'))`,
     ],
   },
+  {
+    // ATS phase 6: a record of every sign-in attempt, and indexes for filtering the audit log.
+    version: 7,
+    statements: [
+      `CREATE TABLE login_events (
+         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+         user_id uuid REFERENCES admin_users(id) ON DELETE SET NULL,
+         email text NOT NULL DEFAULT '',
+         outcome text NOT NULL CHECK (outcome IN ('success','bad_password','locked','unknown','inactive','rate_limited','signout')),
+         ip text NOT NULL DEFAULT '',
+         user_agent text NOT NULL DEFAULT '',
+         created_at timestamptz NOT NULL DEFAULT now()
+       )`,
+      `CREATE INDEX login_events_created ON login_events(created_at DESC)`,
+      `CREATE INDEX login_events_user ON login_events(user_id, created_at DESC)`,
+      `CREATE INDEX activity_log_user ON activity_log(user_id, created_at DESC)`,
+      `CREATE INDEX activity_log_entity ON activity_log(entity, entity_id, created_at DESC)`,
+    ],
+  },
 ];

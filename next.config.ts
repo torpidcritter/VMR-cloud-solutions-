@@ -16,7 +16,12 @@ const nextConfig: NextConfig = {
   // Admins upload resumes (up to 4 MB) through server actions; the default limit is 1 MB.
   experimental: { serverActions: { bodySizeLimit: "5mb" } },
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      // The admin panel never belongs in search results, including its file and CSV routes.
+      { source: "/admin/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },
+      { source: "/admin", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },
+    ];
   },
 };
 

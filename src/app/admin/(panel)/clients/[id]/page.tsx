@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BriefcaseBusiness, ClipboardList, ExternalLink, Mail, Phone, Plus, Send, Star, Trash2, UserCheck } from "lucide-react";
+import { BriefcaseBusiness, ClipboardList, ExternalLink, History, Mail, Phone, Plus, Send, Star, Trash2, UserCheck } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/session";
+import { logView } from "@/lib/data/audit";
 import { can } from "@/lib/auth/permissions";
 import { clientOpenings, getClient, listClientEvents, listContacts, listRequirements, managerOptions, websiteHref } from "@/lib/data/clients";
 import { REQUIREMENT_STATUSES, REQUIREMENT_STATUS_LABELS, type RequirementStatus } from "@/lib/data/constants";
@@ -25,6 +26,7 @@ export default async function ClientPage({ params, searchParams }: { params: Pro
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const c = await getClient(id);
   if (!c) notFound();
+  await logView(me.id, "client", c.id, `Viewed client ${c.name}`);
   const editable = can(me.role, "clients.edit");
   const editing = editable && one(sp.edit) === "1";
   // Which openings belong to a client is confidential to roles that may see client names on openings.
@@ -64,6 +66,11 @@ export default async function ClientPage({ params, searchParams }: { params: Pro
               <a href={websiteHref(c.website)} target="_blank" rel="noreferrer noopener" className="a-btn">
                 <ExternalLink aria-hidden className="size-4" /> Website
               </a>
+            )}
+            {can(me.role, "activity.view") && (
+              <Link href={`/admin/activity?entity=client&id=${c.id}`} className="a-btn">
+                <History aria-hidden className="size-4" /> Audit trail
+              </Link>
             )}
             {editable && !editing && (
               <Link href={`${base}?edit=1`} className="a-btn">

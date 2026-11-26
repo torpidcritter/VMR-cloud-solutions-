@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { assertAdmin } from "@/lib/auth/session";
-import { saveSettings, type Settings } from "@/lib/data/settings";
+import { getSettings, saveSettings, type Settings } from "@/lib/data/settings";
+import { RETENTION_CHOICES } from "@/lib/data/constants";
 import { logActivity } from "@/lib/data/activity";
 import type { ActionState } from "@/components/admin/forms";
 
@@ -16,13 +17,17 @@ export async function saveSettingsAction(_: ActionState, form: FormData): Promis
     notifyApplications: form.get("notifyApplications") === "on",
     notifyEnquiries: form.get("notifyEnquiries") === "on",
     showCareerAreasFallback: form.get("showCareerAreasFallback") === "on",
+    auditRetentionDays: Number(form.get("auditRetentionDays")),
   };
   const errors: Record<string, string> = {};
   if (!EMAILS.test(value.applicationsEmail)) errors.applicationsEmail = "Enter one or more email addresses, separated by commas.";
   if (!EMAILS.test(value.enquiriesEmail)) errors.enquiriesEmail = "Enter one or more email addresses, separated by commas.";
+  if (!(RETENTION_CHOICES as readonly number[]).includes(value.auditRetentionDays)) errors.auditRetentionDays = "Choose one of the listed periods.";
   if (Object.keys(errors).length) return { errors };
+  const before = await getSettings();
   await saveSettings(value);
-  await logActivity(me.id, "update", "settings", null, "Updated settings");
+  const changed = (Object.keys(value) as (keyof Settings)[]).filter((k) => before[k] !== value[k]);
+  await logActivity(me.id, "update", "settings", null, changed.length ? `Updated settings: ${changed.map((k) => `${k} ${String(before[k])} → ${String(value[k])}`).join("; ")}` : "Saved settings (no changes)");
   revalidatePath("/careers");
   return { ok: true, message: "Settings saved." };
 }

@@ -5,6 +5,8 @@ import { INTERVIEW_MODE_LABELS } from "@/lib/data/constants";
 import { escapeHtml, isMailConfigured, sendMail, tableHtml } from "@/lib/mailer";
 import { claimDueReminders } from "@/lib/data/tasks";
 import { notify } from "@/lib/data/notifications";
+import { pruneAudit } from "@/lib/data/audit";
+import { getSettings } from "@/lib/data/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -38,8 +40,9 @@ async function inAppReminders() {
 }
 
 /**
- * Emails each interview panel once, about a day before, and posts in-app
- * reminders for due tasks and follow-ups. Safe to run as often as you like.
+ * Emails each interview panel once, about a day before, posts in-app
+ * reminders for due tasks and follow-ups, and deletes audit entries past the
+ * retention period. Safe to run as often as you like.
  */
 export async function GET(req: Request) {
   if (!authorised(req)) return NextResponse.json({ error: "Not allowed" }, { status: 401 });
@@ -49,7 +52,13 @@ export async function GET(req: Request) {
   } catch (err) {
     console.error("[cron:reminders] in-app reminders failed", err instanceof Error ? err.message : err);
   }
-  if (!isMailConfigured()) return NextResponse.json({ sent: 0, notified, skipped: "Email is not configured" });
+  let pruned: Awaited<ReturnType<typeof pruneAudit>> | null = null;
+  try {
+    pruned = await pruneAudit((await getSettings()).auditRetentionDays);
+  } catch (err) {
+    console.error("[cron:reminders] audit clean-up failed", err instanceof Error ? err.message : err);
+  }
+  if (!isMailConfigured()) return NextResponse.json({ sent: 0, notified, pruned, skipped: "Email is not configured" });
 
   const origin = process.env.ADMIN_ORIGIN?.replace(/\/$/, "") || new URL(req.url).origin;
   const due = await interviewsNeedingReminder(24);
@@ -86,5 +95,5 @@ export async function GET(req: Request) {
       failed.push(i.id);
     }
   }
-  return NextResponse.json({ due: due.length, sent, failed: failed.length, notified });
+  return NextResponse.json({ due: due.length, sent, failed: failed.length, notified, pruned });
 }

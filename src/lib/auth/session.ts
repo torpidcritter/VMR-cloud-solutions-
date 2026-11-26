@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db/client";
 import { can, type Permission, type Role } from "./permissions";
 import { verifyPassword } from "./password";
+import { recordLogin } from "@/lib/data/audit";
 
 export const SESSION_COOKIE = "vmr_admin";
 const SESSION_HOURS = 8;
@@ -45,12 +46,15 @@ export async function signIn(emailRaw: string, password: string, meta: { ip?: st
     locked_until: string | null;
   }>(`SELECT id, email, name, role, password_hash, active, must_change_password, failed_attempts, locked_until FROM admin_users WHERE email = $1`, [email]);
 
+  const audit = { email, ip: meta.ip, userAgent: meta.userAgent };
   if (!u || !u.active) {
     // Same work as a real check so timing doesn't reveal which emails exist.
     await verifyPassword(password, "scrypt$16384$8$1$AAAAAAAAAAAAAAAAAAAAAA==$AAAA");
+    await recordLogin({ ...audit, userId: u?.id, outcome: u ? "inactive" : "unknown" });
     return { ok: false, error: GENERIC };
   }
   if (u.locked_until && new Date(u.locked_until) > new Date()) {
+    await recordLogin({ ...audit, userId: u.id, outcome: "locked" });
     return { ok: false, error: `Too many attempts. Try again after ${LOCK_MINUTES} minutes, or ask a Super Admin to reset your password.` };
   }
   if (!(await verifyPassword(password, u.password_hash))) {
@@ -59,12 +63,14 @@ export async function signIn(emailRaw: string, password: string, meta: { ip?: st
       `UPDATE admin_users SET failed_attempts = $2::int, locked_until = CASE WHEN $2::int >= $3::int THEN now() + ($4::text || ' minutes')::interval ELSE locked_until END WHERE id = $1`,
       [u.id, failed, MAX_FAILED, String(LOCK_MINUTES)],
     );
+    await recordLogin({ ...audit, userId: u.id, outcome: "bad_password" });
     return { ok: false, error: GENERIC };
   }
 
   await conn.query(`UPDATE admin_users SET failed_attempts = 0, locked_until = NULL, last_login_at = now() WHERE id = $1`, [u.id]);
   await startSession(u.id, meta);
   await conn.query(`DELETE FROM admin_sessions WHERE expires_at < now()`);
+  await recordLogin({ ...audit, userId: u.id, outcome: "success" });
   return { ok: true, user: { id: u.id, email: u.email, name: u.name, role: u.role, mustChangePassword: u.must_change_password } };
 }
 

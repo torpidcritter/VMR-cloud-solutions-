@@ -123,3 +123,6 @@ export const CLIENT_STATUS_LABELS: Record<ClientStatus, string> = { prospect: "P
 export const REQUIREMENT_STATUSES = ["open", "on_hold", "filled", "cancelled"] as const;
 export type RequirementStatus = (typeof REQUIREMENT_STATUSES)[number];
 export const REQUIREMENT_STATUS_LABELS: Record<RequirementStatus, string> = { open: "Open", on_hold: "On hold", filled: "Filled", cancelled: "Cancelled" };
+
+/** How long the audit log may be kept, in days (offered in Settings). */
+export const RETENTION_CHOICES = [90, 180, 365, 730, 1095, 1825, 3650] as const;

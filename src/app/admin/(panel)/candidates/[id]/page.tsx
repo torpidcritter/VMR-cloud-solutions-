@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CheckCircle2, Download, ExternalLink, Eye, Mail, Pencil, Phone, Trash2, Users, X } from "lucide-react";
+import { CheckCircle2, Download, ExternalLink, Eye, History, Mail, Pencil, Phone, Trash2, Users, X } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/session";
+import { logView } from "@/lib/data/audit";
 import { can } from "@/lib/auth/permissions";
 import { getCandidate } from "@/lib/data/candidates";
 import { recruiterOptions } from "@/lib/data/applications";
@@ -43,6 +44,7 @@ export default async function CandidatePage({
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const c = await getCandidate(id);
   if (!c) notFound();
+  await logView(me.id, "candidate", c.id, `Viewed the profile of ${c.full_name}`);
   const editable = can(me.role, "candidates.edit");
   const canMerge = can(me.role, "candidates.merge");
   const canDownload = can(me.role, "resumes.download");
@@ -105,6 +107,11 @@ export default async function CandidatePage({
         }
         actions={
           <>
+            {can(me.role, "activity.view") && (
+              <Link href={`/admin/activity?entity=candidate&id=${c.id}`} className="a-btn">
+                <History aria-hidden className="size-4" /> Audit trail
+              </Link>
+            )}
             {canEmail && mailReady ? (
               <Link href={`${base}?compose=1#emails`} className="a-btn">
                 <Mail aria-hidden className="size-4" /> Email

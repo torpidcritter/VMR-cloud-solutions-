@@ -52,7 +52,7 @@ describe("schema", () => {
   it("applies migrations once and records the version", async () => {
     const conn = await db();
     const rows = await conn.query<{ version: number }>(`SELECT version FROM schema_migrations ORDER BY version`);
-    expect(rows.map((r) => Number(r.version))).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(rows.map((r) => Number(r.version))).toEqual([1, 2, 3, 4, 5, 6, 7]);
   });
 });
 
@@ -927,5 +927,119 @@ describe("ATS: tasks, analytics and bulk actions", () => {
     expect(weeks.reduce((s, w) => s + w.count, 0)).toBe(Number(n));
     const skills = await skillDemand();
     expect(skills.find((s) => s.skill === "SAP FI")?.openings).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("ATS: audit log", () => {
+  const audit = () => import("@/lib/data/audit");
+  let auditorId = "";
+
+  beforeAll(async () => {
+    auditorId = await users.createAdmin({ email: "audit.tester@example.test", name: "Audit Tester", role: "recruiter", password: "audit-pass-42", mustChange: false });
+  });
+
+  it("records every sign-in attempt without keeping a password typed as the email", async () => {
+    const { listLogins } = await audit();
+    const meta = { ip: "198.51.100.7", userAgent: "Mozilla/5.0 (Windows NT 10.0) Chrome/130" };
+    expect((await session.signIn("audit.tester@example.test", "wrong-pass-1", meta)).ok).toBe(false);
+    expect((await session.signIn("AUDIT.tester@example.test", "audit-pass-42", meta)).ok).toBe(true);
+    expect((await session.signIn("nobody@example.test", "whatever-123", meta)).ok).toBe(false);
+    expect((await session.signIn("my-secret-password", "x", meta)).ok).toBe(false);
+    await session.signOut();
+
+    const mine = await listLogins({ user: auditorId });
+    expect(mine.rows.map((r) => r.outcome)).toEqual(["success", "bad_password"]);
+    expect(mine.rows[0]).toMatchObject({ email: "audit.tester@example.test", ip: "198.51.100.7", user_name: "Audit Tester" });
+    expect(mine.failed).toBe(1);
+    const byIp = await listLogins({ q: "198.51.100.7", outcome: "failed" });
+    expect(byIp.rows.map((r) => [r.outcome, r.email])).toEqual([
+      ["unknown", "(not an email address)"],
+      ["unknown", "nobody@example.test"],
+      ["bad_password", "audit.tester@example.test"],
+    ]);
+
+    await users.updateAdmin(auditorId, { name: "Audit Tester", role: "recruiter", active: false });
+    expect((await session.signIn("audit.tester@example.test", "audit-pass-42", meta)).ok).toBe(false);
+    expect((await listLogins({ user: auditorId }, { limit: 1 })).rows[0].outcome).toBe("inactive");
+    await users.updateAdmin(auditorId, { name: "Audit Tester", role: "recruiter", active: true });
+  });
+
+  it("logs a view of a client or candidate once per half hour", async () => {
+    const { logView, listActivity } = await audit();
+    const [cand] = (await apps.listApplications({ q: "bulk.one" })).rows;
+    await logView(auditorId, "candidate", cand.candidate_id, "Viewed the profile of Bulk Tester One");
+    await logView(auditorId, "candidate", cand.candidate_id, "Viewed the profile of Bulk Tester One");
+    await logView(auditorId, "candidate", "not-a-uuid", "x");
+    const views = await listActivity({ user: auditorId, action: "view" });
+    expect(views.total).toBe(1);
+    expect(views.rows[0]).toMatchObject({ entity: "candidate", entity_id: cand.candidate_id });
+    expect((await listActivity({ entity: "candidate", entityId: cand.candidate_id, action: "view" })).total).toBe(1);
+  });
+
+  it("filters the activity log safely", async () => {
+    const { listActivity, activityFacets } = await audit();
+    const { logActivity } = await import("@/lib/data/activity");
+    await logActivity(auditorId, "update", "candidate", null, "Changed 100% of the _tags_");
+    expect((await listActivity({ q: "100%" })).rows.map((r) => r.summary)).toEqual(["Changed 100% of the _tags_"]);
+    expect((await listActivity({ q: "_", user: auditorId })).total).toBe(1);
+    expect((await listActivity({ user: auditorId, from: "2099-01-01" })).total).toBe(0);
+    // Impossible dates and junk are ignored rather than failing.
+    expect((await listActivity({ user: auditorId, from: "2026-02-31", action: "x'; DROP TABLE activity_log;--" })).total).toBe(2);
+    const facets = await activityFacets();
+    expect(facets.actions).toEqual(expect.arrayContaining(["view", "update"]));
+    expect(facets.entities).toContain("candidate");
+  });
+
+  it("keeps entries only for the retention period, never less than 90 days", async () => {
+    const { pruneAudit, recordLogin, listLogins } = await audit();
+    const conn = await db();
+    await conn.query(`INSERT INTO activity_log (user_id, action, entity, summary, created_at) VALUES ($1, 'update', 'task', 'old', now() - interval '800 days'), ($1, 'update', 'task', 'recent', now() - interval '50 days')`, [auditorId]);
+    await recordLogin({ userId: auditorId, email: "audit.tester@example.test", outcome: "success" });
+    await conn.query(`UPDATE login_events SET created_at = now() - interval '800 days' WHERE id = (SELECT id FROM login_events WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1)`, [auditorId]);
+    const before = (await listLogins({ user: auditorId })).total;
+    const r = await pruneAudit(10);
+    expect(r.keepDays).toBe(90);
+    expect(r.activity).toBe(1);
+    expect(r.logins).toBe(1);
+    expect((await listLogins({ user: auditorId })).total).toBe(before - 1);
+    const left = await conn.query<{ summary: string }>(`SELECT summary FROM activity_log WHERE entity = 'task' AND summary IN ('old','recent')`);
+    expect(left.map((x) => x.summary)).toEqual(["recent"]);
+    expect((await pruneAudit(99999)).keepDays).toBe(3650);
+  });
+
+  it("validates the retention setting and logs what changed", async () => {
+    expect((await session.signIn("owner@example.com", "correct-horse-42")).ok).toBe(true);
+    const { saveSettingsAction } = await import("@/app/admin/actions/settings");
+    const { getSettings } = await import("@/lib/data/settings");
+    const base = await getSettings();
+    const form = (days: string) => {
+      const f = new FormData();
+      f.set("applicationsEmail", base.applicationsEmail);
+      f.set("enquiriesEmail", base.enquiriesEmail);
+      f.set("auditRetentionDays", days);
+      return f;
+    };
+    expect((await saveSettingsAction({}, form("5"))).errors?.auditRetentionDays).toBeTruthy();
+    expect(await saveSettingsAction({}, form("365"))).toMatchObject({ ok: true });
+    expect((await getSettings()).auditRetentionDays).toBe(365);
+    const { listActivity } = await audit();
+    const [entry] = (await listActivity({ entity: "settings" })).rows;
+    expect(entry.summary).toContain("auditRetentionDays 730 → 365");
+  });
+
+  it("exports the audit log only for roles that may see it", async () => {
+    const { GET } = await import("@/app/admin/api/activity-export/route");
+    const ok = await GET(new Request("http://localhost/admin/api/activity-export?tab=signins&outcome=failed"));
+    expect(ok.status).toBe(200);
+    const bytes = Buffer.from(await ok.arrayBuffer());
+    // The BOM lets Excel read the file as UTF-8.
+    expect([...bytes.subarray(0, 3)]).toEqual([0xef, 0xbb, 0xbf]);
+    const text = bytes.subarray(3).toString("utf8");
+    expect(text.split("\r\n")[0]).toBe('"When (IST)","Result","Name","Email typed","IP address","Browser"');
+    expect(text).toContain("(not an email address)");
+    await session.signOut();
+    await session.signIn("viewer@example.com", "viewer-pass-42");
+    expect((await GET(new Request("http://localhost/admin/api/activity-export"))).status).toBe(403);
+    await session.signOut();
   });
 });

@@ -3,13 +3,17 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { clientIp, rateLimited } from "@/lib/guard";
-import { endAllSessions, normaliseEmail, requireAdmin, signIn, signOut, startSession } from "@/lib/auth/session";
+import { currentAdmin, endAllSessions, normaliseEmail, requireAdmin, signIn, signOut, startSession } from "@/lib/auth/session";
 import { passwordProblem, verifyPassword } from "@/lib/auth/password";
 import { countAdmins, createFirstAdmin, getPasswordHash, setPassword } from "@/lib/data/users";
 import { logActivity } from "@/lib/data/activity";
+import { recordLogin } from "@/lib/data/audit";
 import type { ActionState } from "@/components/admin/forms";
 
 const s = (v: FormDataEntryValue | null, max = 300) => (typeof v === "string" ? v.slice(0, max) : "");
+
+/** One "too many attempts" entry per network every 10 minutes, so a flood can't fill the log. */
+const limitedLogged = new Map<string, number>();
 
 async function requestMeta() {
   const h = await headers();
@@ -26,7 +30,15 @@ export async function signInAction(_: ActionState, form: FormData): Promise<Acti
   const password = s(form.get("password"), 200);
   if (!email || !password) return { error: "Enter your email and password.", data: { email } };
   const meta = await requestMeta();
-  if (rateLimited(`admin-login:${meta.ip}`)) return { error: "Too many sign-in attempts from this network. Wait 10 minutes and try again.", data: { email } };
+  if (rateLimited(`admin-login:${meta.ip}`)) {
+    const last = limitedLogged.get(meta.ip) ?? 0;
+    if (Date.now() - last > 10 * 60_000) {
+      if (limitedLogged.size > 5000) limitedLogged.clear();
+      limitedLogged.set(meta.ip, Date.now());
+      await recordLogin({ email, outcome: "rate_limited", ...meta });
+    }
+    return { error: "Too many sign-in attempts from this network. Wait 10 minutes and try again.", data: { email } };
+  }
   const res = await signIn(email, password, meta);
   if (!res.ok) return { error: res.error, data: { email } };
   await logActivity(res.user.id, "signin", "user", res.user.id, `${res.user.name} signed in`);
@@ -34,6 +46,8 @@ export async function signInAction(_: ActionState, form: FormData): Promise<Acti
 }
 
 export async function signOutAction() {
+  const me = await currentAdmin();
+  if (me) await recordLogin({ userId: me.id, email: me.email, outcome: "signout", ...(await requestMeta()) });
   await signOut();
   redirect("/admin/login");
 }

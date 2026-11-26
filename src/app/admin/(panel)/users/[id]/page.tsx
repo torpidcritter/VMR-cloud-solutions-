@@ -4,7 +4,9 @@ import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth/session";
 import { getAdmin } from "@/lib/data/users";
 import { getTarget, currentMonth } from "@/lib/data/workspace";
-import { PageHeader, Panel, formatDateTime } from "@/components/admin/ui";
+import { Badge, PageHeader, Panel, formatDateTime } from "@/components/admin/ui";
+import { can } from "@/lib/auth/permissions";
+import { LOGIN_OUTCOME_LABELS, listLogins } from "@/lib/data/audit";
 import { ResetPasswordForm, TargetForm, UserForm } from "./UserForms";
 
 export const metadata: Metadata = { title: "Edit user" };
@@ -16,6 +18,8 @@ export default async function UserPage({ params }: { params: Promise<{ id: strin
   if (!u) notFound();
   const showTarget = u.role === "recruiter" || u.role === "super_admin";
   const target = showTarget ? await getTarget(u.id) : null;
+  const audit = can(me.role, "activity.view");
+  const logins = audit ? (await listLogins({ user: u.id }, { limit: 8 })).rows : [];
   const monthName = new Date(`${currentMonth()}T00:00:00Z`).toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" });
   return (
     <div className="max-w-3xl">
@@ -37,6 +41,38 @@ export default async function UserPage({ params }: { params: Promise<{ id: strin
           <p className="mb-3 text-sm text-muted">Creates a new temporary password, signs them out everywhere and unlocks the account.</p>
           <ResetPasswordForm id={u.id} />
         </Panel>
+        {audit && (
+          <Panel
+            title="Recent sign-ins"
+            bodyClass=""
+            actions={
+              <Link href={`/admin/activity?user=${u.id}`} className="text-sm text-brand-600 hover:underline">
+                Their activity
+              </Link>
+            }
+          >
+            {logins.length ? (
+              <ul className="divide-y divide-line text-sm">
+                {logins.map((l) => (
+                  <li key={l.id} className="flex flex-wrap items-center justify-between gap-2 px-5 py-2.5">
+                    <Badge tone={l.outcome === "success" ? "green" : l.outcome === "signout" ? "grey" : "red"}>{LOGIN_OUTCOME_LABELS[l.outcome]}</Badge>
+                    <span className="text-muted">
+                      {formatDateTime(l.created_at)}
+                      {l.ip ? ` · ${l.ip}` : ""}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="px-5 py-4 text-sm text-muted">No sign-ins recorded yet.</p>
+            )}
+            <p className="border-t border-line px-5 py-2.5 text-xs">
+              <Link href={`/admin/activity?tab=signins&user=${u.id}`} className="text-brand-600 hover:underline">
+                All sign-in records for {u.name}
+              </Link>
+            </p>
+          </Panel>
+        )}
       </div>
     </div>
   );

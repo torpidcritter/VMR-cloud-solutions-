@@ -13,6 +13,8 @@ export type Settings = {
   notifyEnquiries: boolean;
   /** Show the fixed "career areas" list on the Careers page when no openings are published. */
   showCareerAreasFallback: boolean;
+  /** How long the activity log and sign-in records are kept (the daily job deletes older entries). */
+  auditRetentionDays: number;
 };
 
 export function defaultSettings(): Settings {
@@ -22,6 +24,7 @@ export function defaultSettings(): Settings {
     notifyApplications: true,
     notifyEnquiries: true,
     showCareerAreasFallback: true,
+    auditRetentionDays: 730,
   };
 }
 

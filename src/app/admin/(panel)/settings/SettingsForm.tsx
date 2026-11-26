@@ -2,6 +2,7 @@
 
 import { ActionForm, FieldError, SubmitButton } from "@/components/admin/forms";
 import type { Settings } from "@/lib/data/settings";
+import { RETENTION_CHOICES } from "@/lib/data/constants";
 import { saveSettingsAction } from "../../actions/settings";
 
 export function SettingsForm({ settings }: { settings: Settings }) {
@@ -42,6 +43,23 @@ export function SettingsForm({ settings }: { settings: Settings }) {
                 <span className="block text-xs text-muted">The resume form always stays on the page.</span>
               </span>
             </label>
+          </section>
+          <section className="card grid gap-3 p-5">
+            <h2 className="text-sm font-semibold">Audit log</h2>
+            <div className="max-w-xs">
+              <label htmlFor="auditRetentionDays" className="a-label">
+                Keep activity and sign-in records for
+              </label>
+              <select id="auditRetentionDays" name="auditRetentionDays" defaultValue={String(settings.auditRetentionDays)} aria-invalid={!!state.errors?.auditRetentionDays} className="a-field">
+                {RETENTION_CHOICES.map((d) => (
+                  <option key={d} value={d}>
+                    {d % 365 === 0 ? `${d / 365} year${d === 365 ? "" : "s"}` : `${d} days`}
+                  </option>
+                ))}
+              </select>
+              <FieldError error={state.errors?.auditRetentionDays} />
+            </div>
+            <p className="text-xs text-muted">The daily job deletes older entries, and read notifications after 180 days. Candidate timelines are not affected.</p>
           </section>
           <div>
             <SubmitButton>Save settings</SubmitButton>
