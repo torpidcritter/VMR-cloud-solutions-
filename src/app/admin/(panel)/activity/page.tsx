@@ -14,6 +14,7 @@ const LINK: Record<string, (id: string) => string> = {
   enquiry: (id) => `/admin/enquiries/${id}`,
   user: (id) => `/admin/users/${id}`,
   candidate: (id) => `/admin/candidates/${id}`,
+  interview: (id) => `/admin/interviews/${id}`,
 };
 
 export default async function ActivityPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {

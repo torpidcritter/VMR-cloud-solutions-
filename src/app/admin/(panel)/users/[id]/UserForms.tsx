@@ -3,6 +3,7 @@
 import { ActionForm, FieldError, SubmitButton } from "@/components/admin/forms";
 import { ROLE_LABELS, ROLES } from "@/lib/auth/permissions";
 import { resetPasswordAction, updateUserAction } from "../../../actions/users";
+import { setTargetAction } from "../../../actions/interviews";
 
 export function UserForm({ user, self }: { user: { id: string; name: string; role: string; active: boolean }; self: boolean }) {
   return (
@@ -50,6 +51,37 @@ export function ResetPasswordForm({ id }: { id: string }) {
       <SubmitButton className="a-btn" pendingLabel="Resetting…">
         Reset password
       </SubmitButton>
+    </ActionForm>
+  );
+}
+
+export function TargetForm({ userId, target }: { userId: string; target: number | null }) {
+  return (
+    <ActionForm action={setTargetAction} className="flex flex-wrap items-end gap-3">
+      {(state) => (
+        <>
+          <input type="hidden" name="userId" value={userId} />
+          <div>
+            <label htmlFor="placements" className="a-label">
+              Placements
+            </label>
+            <input
+              id="placements"
+              name="placements"
+              type="number"
+              min={0}
+              max={999}
+              inputMode="numeric"
+              defaultValue={target ?? ""}
+              className="a-field w-32"
+              aria-invalid={!!state.errors?.placements}
+              aria-describedby={state.errors?.placements ? "placements-error" : undefined}
+            />
+            <FieldError id="placements-error" error={state.errors?.placements} />
+          </div>
+          <SubmitButton>Save target</SubmitButton>
+        </>
+      )}
     </ActionForm>
   );
 }

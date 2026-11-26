@@ -67,3 +67,6 @@ export const EVENT_KIND_LABELS: Record<string, string> = {
   task: "Task",
   merge: "Merge",
 };
+
+/** Badge colour for each kind of history entry. */
+export const eventTone = (kind: string): Tone => (kind === "note" ? "blue" : kind === "status" ? "violet" : kind === "interview" ? "cyan" : "grey");

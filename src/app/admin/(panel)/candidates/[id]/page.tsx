@@ -6,10 +6,12 @@ import { requireAdmin } from "@/lib/auth/session";
 import { can } from "@/lib/auth/permissions";
 import { getCandidate } from "@/lib/data/candidates";
 import { recruiterOptions } from "@/lib/data/applications";
+import { listInterviews } from "@/lib/data/interviews";
+import { InterviewList } from "@/components/admin/interview-ui";
 import { APPLICATION_SOURCE_LABELS, CANDIDATE_PRIORITIES, CANDIDATE_PRIORITY_LABELS } from "@/lib/data/constants";
 import { ConfirmButton, SubmitButton } from "@/components/admin/forms";
 import { ApplicationStatusBadge, Badge, Notice, PageHeader, Panel, formatDate, formatDateTime } from "@/components/admin/ui";
-import { EVENT_KIND_LABELS, EventText, PriorityBadge, TagList } from "@/components/admin/candidate-ui";
+import { EVENT_KIND_LABELS, EventText, PriorityBadge, TagList, eventTone } from "@/components/admin/candidate-ui";
 import { mergeCandidatesAction, quickCandidateAction } from "../../../actions/candidates";
 import { CandidateNoteForm } from "./CandidateNoteForm";
 import { ProfileForm } from "./ProfileForm";
@@ -18,7 +20,7 @@ import { QuickField } from "./QuickField";
 export const metadata: Metadata = { title: "Candidate" };
 
 const one = (v: unknown) => (typeof v === "string" ? v.slice(0, 40) : undefined);
-const KINDS = ["note", "status", "assign", "edit", "merge"] as const;
+const KINDS = ["note", "status", "interview", "assign", "edit", "merge"] as const;
 
 export default async function CandidatePage({
   params,
@@ -36,7 +38,7 @@ export default async function CandidatePage({
   const canDownload = can(me.role, "resumes.download");
   const editing = editable && one(sp.edit) === "1";
   const kind = (KINDS as readonly string[]).includes(one(sp.kind) ?? "") ? one(sp.kind) : undefined;
-  const recruiters = editable ? await recruiterOptions() : [];
+  const [recruiters, interviews] = await Promise.all([editable ? recruiterOptions() : Promise.resolve([]), listInterviews({ candidateId: c.id }, 50)]);
   const today = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
   const followDue = !!c.follow_up_on && c.follow_up_on <= today;
   const timeline = kind ? c.timeline.filter((e) => e.kind === kind) : c.timeline;
@@ -252,6 +254,10 @@ export default async function CandidatePage({
             )}
           </Panel>
 
+          <Panel title={`Interviews${interviews.length ? ` (${interviews.length})` : ""}`} bodyClass="">
+            <InterviewList items={[...interviews].reverse()} empty="No interviews yet. Schedule one from an application." showCandidate={false} />
+          </Panel>
+
           <Panel title="Timeline">
             {editable && (
               <div className="mb-5">
@@ -273,7 +279,7 @@ export default async function CandidatePage({
                 {timeline.map((e) => (
                   <li key={e.id} className="rounded-lg border border-line p-3 text-sm">
                     <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
-                      <Badge tone={e.kind === "note" ? "blue" : e.kind === "status" ? "violet" : "grey"}>{EVENT_KIND_LABELS[e.kind] ?? e.kind}</Badge>
+                      <Badge tone={eventTone(e.kind)}>{EVENT_KIND_LABELS[e.kind] ?? e.kind}</Badge>
                       <span>
                         {e.user_name ?? "System"} · {formatDateTime(e.created_at)}
                       </span>

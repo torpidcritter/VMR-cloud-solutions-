@@ -195,4 +195,51 @@ export const MIGRATIONS: { version: number; statements: string[] }[] = [
        )`,
     ],
   },
+  {
+    // ATS phase 2: interviews with panels and feedback, recruiter targets.
+    version: 3,
+    statements: [
+      `CREATE TABLE interviews (
+         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+         application_id uuid NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+         round text NOT NULL DEFAULT '',
+         scheduled_at timestamptz NOT NULL,
+         duration_minutes int NOT NULL DEFAULT 60 CHECK (duration_minutes BETWEEN 10 AND 480),
+         mode text NOT NULL DEFAULT 'video' CHECK (mode IN ('video','phone','in_person')),
+         location text NOT NULL DEFAULT '',
+         status text NOT NULL DEFAULT 'scheduled' CHECK (status IN ('scheduled','completed','cancelled','no_show')),
+         notes text NOT NULL DEFAULT '',
+         cancel_reason text NOT NULL DEFAULT '',
+         reminded_at timestamptz,
+         created_by uuid REFERENCES admin_users(id) ON DELETE SET NULL,
+         created_at timestamptz NOT NULL DEFAULT now(),
+         updated_at timestamptz NOT NULL DEFAULT now()
+       )`,
+      `CREATE INDEX interviews_time ON interviews(scheduled_at)`,
+      `CREATE INDEX interviews_application ON interviews(application_id)`,
+      `CREATE TABLE interview_panel (
+         interview_id uuid NOT NULL REFERENCES interviews(id) ON DELETE CASCADE,
+         user_id uuid NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+         PRIMARY KEY (interview_id, user_id)
+       )`,
+      `CREATE INDEX interview_panel_user ON interview_panel(user_id)`,
+      `CREATE TABLE interview_feedback (
+         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+         interview_id uuid NOT NULL REFERENCES interviews(id) ON DELETE CASCADE,
+         user_id uuid REFERENCES admin_users(id) ON DELETE SET NULL,
+         rating int NOT NULL CHECK (rating BETWEEN 1 AND 5),
+         recommendation text NOT NULL CHECK (recommendation IN ('strong_yes','yes','maybe','no')),
+         notes text NOT NULL DEFAULT '',
+         created_at timestamptz NOT NULL DEFAULT now(),
+         updated_at timestamptz NOT NULL DEFAULT now(),
+         UNIQUE (interview_id, user_id)
+       )`,
+      `CREATE TABLE recruiter_targets (
+         user_id uuid NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+         month date NOT NULL,
+         placements int NOT NULL CHECK (placements BETWEEN 0 AND 999),
+         PRIMARY KEY (user_id, month)
+       )`,
+    ],
+  },
 ];

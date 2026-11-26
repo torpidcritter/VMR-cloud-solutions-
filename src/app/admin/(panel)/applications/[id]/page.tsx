@@ -6,11 +6,15 @@ import { requireAdmin } from "@/lib/auth/session";
 import { can } from "@/lib/auth/permissions";
 import { getApplication, recruiterOptions } from "@/lib/data/applications";
 import { APPLICATION_SOURCE_LABELS, APPLICATION_STATUSES, APPLICATION_STATUS_LABELS } from "@/lib/data/constants";
-import { EVENT_KIND_LABELS, EventText, PriorityBadge } from "@/components/admin/candidate-ui";
+import { EVENT_KIND_LABELS, EventText, PriorityBadge, eventTone } from "@/components/admin/candidate-ui";
 import { ConfirmButton, SubmitButton } from "@/components/admin/forms";
 import { ApplicationStatusBadge, Badge, PageHeader, Panel, formatDate, formatDateTime } from "@/components/admin/ui";
 import { deleteApplicationAction, setApplicationStatusAction } from "../../../actions/applications";
 import { assignApplicationAction } from "../../../actions/pipeline";
+import { interviewerOptions, listInterviews } from "@/lib/data/interviews";
+import { InterviewForm } from "@/components/admin/InterviewForm";
+import { InterviewList } from "@/components/admin/interview-ui";
+import { istToday } from "@/lib/data/constants";
 import { NoteForm } from "./NoteForm";
 
 export const metadata: Metadata = { title: "Application" };
@@ -24,7 +28,12 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
   const showClient = can(me.role, "openings.viewClient");
   const editable = can(me.role, "applications.update");
   const isPdf = a.resume_path?.endsWith(".pdf");
-  const recruiters = editable ? await recruiterOptions() : [];
+  const canInterview = can(me.role, "interviews.manage");
+  const [recruiters, interviews, interviewers] = await Promise.all([
+    editable ? recruiterOptions() : Promise.resolve([]),
+    listInterviews({ applicationId: a.id }, 50),
+    canInterview ? interviewerOptions() : Promise.resolve([]),
+  ]);
 
   const facts: [string, React.ReactNode][] = [
     ["Position", a.position],
@@ -121,6 +130,31 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
             )}
           </Panel>
 
+          <Panel title={`Interviews${interviews.length ? ` (${interviews.length})` : ""}`} bodyClass="">
+            <InterviewList items={interviews} empty="No interviews yet." showCandidate={false} />
+            {canInterview && (
+              <details id="schedule" className="border-t border-line px-5 py-4" open={!interviews.length}>
+                <summary className="cursor-pointer text-sm font-semibold text-brand-600">Schedule an interview</summary>
+                <div className="mt-4">
+                  <InterviewForm
+                    interviewers={interviewers}
+                    values={{
+                      applicationId: a.id,
+                      round: interviews.length ? "" : "Technical round 1",
+                      date: istToday(),
+                      time: "11:00",
+                      duration: "60",
+                      mode: "video",
+                      location: "",
+                      notes: "",
+                      panel: a.assigned_to ? [a.assigned_to] : [me.id],
+                    }}
+                  />
+                </div>
+              </details>
+            )}
+          </Panel>
+
           <Panel title="Notes and history">
             {editable && <NoteForm id={a.id} />}
             {a.events.length ? (
@@ -128,7 +162,7 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
                 {a.events.map((e) => (
                   <li key={e.id} className="rounded-lg border border-line p-3 text-sm">
                     <p className="flex flex-wrap items-center gap-2 text-xs text-muted">
-                      <Badge tone={e.kind === "note" ? "blue" : e.kind === "status" ? "violet" : "grey"}>{EVENT_KIND_LABELS[e.kind] ?? e.kind}</Badge>
+                      <Badge tone={eventTone(e.kind)}>{EVENT_KIND_LABELS[e.kind] ?? e.kind}</Badge>
                       {e.user_name ?? "System"} · {formatDateTime(e.created_at)}
                     </p>
                     <EventText e={e} />

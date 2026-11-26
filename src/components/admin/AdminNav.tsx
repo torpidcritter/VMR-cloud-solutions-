@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import {
   Activity,
   BriefcaseBusiness,
+  CalendarClock,
+  ClipboardList,
   Columns3,
   FileText,
   LayoutDashboard,
@@ -20,6 +22,8 @@ import {
 const ICONS = {
   dashboard: LayoutDashboard,
   pipeline: Columns3,
+  interviews: CalendarClock,
+  mywork: ClipboardList,
   applications: FileText,
   candidates: Users,
   openings: BriefcaseBusiness,

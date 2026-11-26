@@ -3,8 +3,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth/session";
 import { getAdmin } from "@/lib/data/users";
+import { getTarget, currentMonth } from "@/lib/data/workspace";
 import { PageHeader, Panel, formatDateTime } from "@/components/admin/ui";
-import { ResetPasswordForm, UserForm } from "./UserForms";
+import { ResetPasswordForm, TargetForm, UserForm } from "./UserForms";
 
 export const metadata: Metadata = { title: "Edit user" };
 
@@ -13,6 +14,9 @@ export default async function UserPage({ params }: { params: Promise<{ id: strin
   const { id } = await params;
   const u = /^[0-9a-f-]{36}$/i.test(id) ? await getAdmin(id) : null;
   if (!u) notFound();
+  const showTarget = u.role === "recruiter" || u.role === "super_admin";
+  const target = showTarget ? await getTarget(u.id) : null;
+  const monthName = new Date(`${currentMonth()}T00:00:00Z`).toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" });
   return (
     <div className="max-w-3xl">
       <Link href="/admin/users" className="text-sm text-muted hover:text-brand-600">
@@ -23,6 +27,12 @@ export default async function UserPage({ params }: { params: Promise<{ id: strin
         <Panel title="Details and role">
           <UserForm user={{ id: u.id, name: u.name, role: u.role, active: u.active }} self={u.id === me.id} />
         </Panel>
+        {showTarget && (
+          <Panel title={`Placement target for ${monthName}`}>
+            <p className="mb-3 text-sm text-muted">Shown on their My work page against hires assigned to them this month. Leave empty for no target.</p>
+            <TargetForm userId={u.id} target={target} />
+          </Panel>
+        )}
         <Panel title="Password">
           <p className="mb-3 text-sm text-muted">Creates a new temporary password, signs them out everywhere and unlocks the account.</p>
           <ResetPasswordForm id={u.id} />

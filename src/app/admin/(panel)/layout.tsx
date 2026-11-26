@@ -9,12 +9,19 @@ import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { signOutAction } from "../actions/auth";
 
 const NAV: { label: string; items: (NavItem & { perm: Permission })[] }[] = [
-  { label: "Overview", items: [{ href: "/admin", label: "Dashboard", icon: "dashboard", perm: "dashboard.view" }] },
+  {
+    label: "Overview",
+    items: [
+      { href: "/admin", label: "Dashboard", icon: "dashboard", perm: "dashboard.view" },
+      { href: "/admin/my-work", label: "My work", icon: "mywork", perm: "applications.view" },
+    ],
+  },
   {
     label: "Recruitment",
     items: [
       { href: "/admin/pipeline", label: "Pipeline", icon: "pipeline", perm: "applications.view" },
       { href: "/admin/applications", label: "Applications", icon: "applications", perm: "applications.view" },
+      { href: "/admin/interviews", label: "Interviews", icon: "interviews", perm: "applications.view" },
     ],
   },
   { label: "People", items: [{ href: "/admin/candidates", label: "Candidates", icon: "candidates", perm: "applications.view" }] },

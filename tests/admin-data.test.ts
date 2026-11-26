@@ -51,7 +51,7 @@ describe("schema", () => {
   it("applies migrations once and records the version", async () => {
     const conn = await db();
     const rows = await conn.query<{ version: number }>(`SELECT version FROM schema_migrations ORDER BY version`);
-    expect(rows.map((r) => Number(r.version))).toEqual([1, 2]);
+    expect(rows.map((r) => Number(r.version))).toEqual([1, 2, 3]);
   });
 });
 
@@ -290,5 +290,162 @@ describe("ATS: candidates, pipeline and job openings", () => {
     expect(merged?.timeline.map((e) => e.kind)).toEqual(expect.arrayContaining(["merge", "note"]));
     expect(merged?.duplicates).toHaveLength(0);
     expect(await c.mergeCandidates(keep.id, keep.id, adminId)).toBe(false);
+  });
+});
+
+describe("ATS: interviews and the recruiter workspace", () => {
+  const iv = () => import("@/lib/data/interviews");
+  const ws = () => import("@/lib/data/workspace");
+  let adminId = "";
+  let recruiterId = "";
+  let appId = "";
+  let otherAppId = "";
+  let interviewId = "";
+  // Tomorrow in IST, so the test never depends on the time of day.
+  const tomorrow = new Date(Date.now() + 5.5 * 3600_000 + 86_400_000).toISOString().slice(0, 10);
+  const form = (over: Record<string, string> = {}) => ({ round: "Technical round 1", date: tomorrow, time: "11:00", duration: "60", mode: "video", location: "https://meet.example.test/abc", notes: "", ...over });
+
+  beforeAll(async () => {
+    const all = await users.listAdmins();
+    adminId = all.find((u) => u.role === "super_admin")!.id;
+    recruiterId = all.find((u) => u.email === "recruiter@example.test")!.id;
+    const a = await apps.recordApplication({
+      candidate: { email: "interview.tester@example.test", fullName: "Interview Tester", phone: "+91 90000 22222" },
+      source: "careers",
+      position: "SAP MM Consultant",
+      experience: "3–5 years",
+    });
+    const b = await apps.recordApplication({
+      candidate: { email: "second.interview@example.test", fullName: "Second Interviewee", phone: "+91 90000 33333" },
+      source: "careers",
+      position: "SAP SD Consultant",
+      experience: "3–5 years",
+    });
+    appId = a.id;
+    otherAppId = b.id;
+    await apps.assignApplication(appId, recruiterId, adminId);
+  });
+
+  it("converts IST and validates the schedule form", async () => {
+    const { istToIso, isoToIst, parseInterview } = await iv();
+    expect(istToIso("2026-12-01", "14:30")).toBe("2026-12-01T09:00:00.000Z");
+    expect(isoToIst("2026-12-01T09:00:00.000Z")).toEqual({ date: "2026-12-01", time: "14:30" });
+    expect(istToIso("01/12/2026", "14:30")).toBeNull();
+
+    const ok = parseInterview(form(), [recruiterId, recruiterId, "nope"]);
+    expect(ok.errors).toEqual({});
+    expect(ok.data.panel).toEqual([recruiterId]);
+
+    const bad = parseInterview(form({ round: "", date: "2020-01-01", duration: "5", mode: "carrier-pigeon", location: "zoom" }), []);
+    expect(Object.keys(bad.errors).sort()).toEqual(["date", "duration", "mode", "panel", "round"]);
+    expect(parseInterview(form({ location: "not a link" }), [recruiterId]).errors.location).toBeTruthy();
+    expect(parseInterview(form({ mode: "in_person", location: "Hyderabad office" }), [recruiterId]).errors).toEqual({});
+  });
+
+  it("schedules an interview, moves the application on and records it", async () => {
+    const { parseInterview, scheduleInterview, getInterview } = await iv();
+    const { data } = parseInterview(form(), [recruiterId]);
+    interviewId = (await scheduleInterview(appId, data, adminId))!;
+    expect(interviewId).toMatch(/^[0-9a-f-]{36}$/);
+    const i = await getInterview(interviewId);
+    expect(i).toMatchObject({ status: "scheduled", round: "Technical round 1", duration_minutes: 60, candidate_name: "Interview Tester" });
+    expect(i!.panel.map((p) => p.id)).toEqual([recruiterId]);
+    const app = await apps.getApplication(appId);
+    expect(app?.status).toBe("interview_scheduled");
+    expect(app?.events.map((e) => e.kind)).toEqual(expect.arrayContaining(["interview", "status"]));
+    // An unknown application schedules nothing.
+    expect(await scheduleInterview("00000000-0000-0000-0000-000000000000", data, adminId)).toBeFalsy();
+  });
+
+  it("finds overlapping interviews for the same panel and lets a reschedule move past them", async () => {
+    const { parseInterview, findConflicts, rescheduleInterview, getInterview } = await iv();
+    const clash = parseInterview(form({ time: "11:30", duration: "30" }), [recruiterId]).data;
+    const found = await findConflicts(clash, otherAppId);
+    expect(found.map((c) => c.id)).toEqual([interviewId]);
+    // Back-to-back is not a clash, nor is the interview being edited.
+    expect(await findConflicts(parseInterview(form({ time: "12:00" }), [recruiterId]).data, otherAppId)).toEqual([]);
+    expect(await findConflicts(clash, appId, interviewId)).toEqual([]);
+
+    const moved = parseInterview(form({ time: "15:00" }), [recruiterId, adminId]).data;
+    expect(await rescheduleInterview(interviewId, moved, adminId)).toBe(true);
+    const i = await getInterview(interviewId);
+    expect(i?.scheduled_at).toBe(moved.scheduledAt);
+    expect(i?.panel).toHaveLength(2);
+    const app = await apps.getApplication(appId);
+    expect(app?.events.some((e) => /moved from/.test(e.body ?? ""))).toBe(true);
+  });
+
+  it("collects one feedback entry per interviewer and completes the interview", async () => {
+    const { parseFeedback, saveFeedback, getInterview, setInterviewStatus } = await iv();
+    expect(Object.keys(parseFeedback({ rating: "9", recommendation: "perhaps" }).errors).sort()).toEqual(["rating", "recommendation"]);
+    const fb = parseFeedback({ rating: "4", recommendation: "yes", notes: "Solid on MM pricing." });
+    expect(fb.errors).toEqual({});
+    expect(await saveFeedback(interviewId, recruiterId, fb.data)).toBe(true);
+    expect(await saveFeedback(interviewId, recruiterId, { ...fb.data, rating: 5, recommendation: "strong_yes" })).toBe(true);
+    const i = await getInterview(interviewId);
+    expect(i?.feedback).toHaveLength(1);
+    expect(i?.feedback[0]).toMatchObject({ rating: 5, recommendation: "strong_yes" });
+    expect(i?.status).toBe("completed");
+    expect((await apps.getApplication(appId))?.status).toBe("interview_completed");
+    // A finished interview cannot change status again.
+    expect(await setInterviewStatus(interviewId, "cancelled", adminId, "late")).toBe(false);
+  });
+
+  it("cancels with a reason, refuses feedback on a cancelled interview and leaves the stage alone", async () => {
+    const { parseInterview, scheduleInterview, setInterviewStatus, saveFeedback, getInterview } = await iv();
+    const id = (await scheduleInterview(otherAppId, parseInterview(form({ time: "17:00" }), [adminId]).data, adminId))!;
+    expect(await setInterviewStatus(id, "cancelled", adminId, "Candidate asked to move it")).toBe(true);
+    const i = await getInterview(id);
+    expect(i).toMatchObject({ status: "cancelled", cancel_reason: "Candidate asked to move it" });
+    expect(await saveFeedback(id, adminId, { rating: 3, recommendation: "maybe", notes: "" })).toBe(false);
+    expect((await apps.getApplication(otherAppId))?.status).toBe("interview_scheduled");
+  });
+
+  it("lists interviews by person and range, and claims each reminder only once", async () => {
+    const { parseInterview, scheduleInterview, listInterviews, interviewsNeedingReminder, claimReminder, releaseReminder } = await iv();
+    const soon = new Date(Date.now() + 2 * 3600_000 + 5.5 * 3600_000).toISOString();
+    const id = (await scheduleInterview(otherAppId, parseInterview(form({ date: soon.slice(0, 10), time: soon.slice(11, 16), round: "HR round" }), [recruiterId]).data, adminId))!;
+
+    const mine = await listInterviews({ userId: recruiterId });
+    expect(mine.map((r) => r.id)).toContain(id);
+    expect((await listInterviews({ userId: adminId, status: "scheduled" })).map((r) => r.id)).not.toContain(id);
+
+    expect((await interviewsNeedingReminder(24)).map((r) => r.id)).toEqual([id]);
+    const claims = await Promise.all([claimReminder(id), claimReminder(id)]);
+    expect(claims.filter(Boolean)).toHaveLength(1);
+    expect(await interviewsNeedingReminder(24)).toEqual([]);
+    await releaseReminder(id);
+    expect((await interviewsNeedingReminder(24)).map((r) => r.id)).toEqual([id]);
+  });
+
+  it("builds a calendar file without the client's name", async () => {
+    const { getInterview, interviewIcs } = await iv();
+    const ics = interviewIcs((await getInterview(interviewId))!, "https://admin.example.test");
+    expect(ics.startsWith("BEGIN:VCALENDAR\r\n")).toBe(true);
+    expect(ics).toContain(`UID:interview-${interviewId}@vmrcloudsolutions.com`);
+    expect(ics).toMatch(/DTSTART:\d{8}T\d{6}Z/);
+    expect(ics).not.toContain("Confidential Client");
+    for (const line of ics.split("\r\n")) expect(Buffer.byteLength(line)).toBeLessThanOrEqual(75);
+  });
+
+  it("sets monthly targets and gathers a recruiter's day", async () => {
+    const { getTarget, setTarget, myWork } = await ws();
+    expect(await getTarget(recruiterId)).toBeNull();
+    await setTarget(recruiterId, 4);
+    await setTarget(recruiterId, 6);
+    expect(await getTarget(recruiterId)).toBe(6);
+
+    const conn = await db();
+    await conn.query(`UPDATE applications SET stage_changed_at = now() - interval '10 days' WHERE id = $1`, [appId]);
+    const w = await myWork(recruiterId);
+    expect(w.target).toBe(6);
+    expect(w.open).toBeGreaterThanOrEqual(1);
+    expect(w.byStage.interview_completed).toBe(1);
+    expect(w.stale.map((s) => s.id)).toContain(appId);
+    expect(w.interviews.every((i) => i.status === "scheduled")).toBe(true);
+    expect(w.interviews.length).toBeGreaterThanOrEqual(1);
+
+    await setTarget(recruiterId, null);
+    expect(await getTarget(recruiterId)).toBeNull();
   });
 });

@@ -97,3 +97,20 @@ export function dateRange(key: string, now = new Date()): { from?: string; to?: 
       return {};
   }
 }
+
+export const INTERVIEW_MODES = ["video", "phone", "in_person"] as const;
+export type InterviewMode = (typeof INTERVIEW_MODES)[number];
+export const INTERVIEW_MODE_LABELS: Record<InterviewMode, string> = { video: "Video call", phone: "Phone", in_person: "In person" };
+
+export const INTERVIEW_STATUSES = ["scheduled", "completed", "cancelled", "no_show"] as const;
+export type InterviewStatus = (typeof INTERVIEW_STATUSES)[number];
+export const INTERVIEW_STATUS_LABELS: Record<InterviewStatus, string> = { scheduled: "Scheduled", completed: "Completed", cancelled: "Cancelled", no_show: "No-show" };
+
+export const RECOMMENDATIONS = ["strong_yes", "yes", "maybe", "no"] as const;
+export type Recommendation = (typeof RECOMMENDATIONS)[number];
+export const RECOMMENDATION_LABELS: Record<Recommendation, string> = { strong_yes: "Strong yes", yes: "Yes", maybe: "Maybe", no: "No" };
+
+export const INTERVIEW_ROUNDS = ["Screening call", "Technical round 1", "Technical round 2", "Managerial round", "Client round", "HR round"] as const;
+
+/** Today's date in India (the business runs on IST), as YYYY-MM-DD. */
+export const istToday = () => new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
