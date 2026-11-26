@@ -2,6 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { db, type Statement } from "@/lib/db/client";
 import { CLIENT_STATUSES, REQUIREMENT_STATUSES, type ClientStatus, type RequirementStatus } from "./constants";
+import { isIsoDate } from "@/lib/dates";
 
 /**
  * The client CRM: companies VMR recruits for, their contacts and the roles
@@ -327,7 +328,7 @@ export function parseRequirement(form: Record<string, unknown>): { data: Require
     title: str(form.title, 160),
     sap_module: str(form.sap_module, 80),
     positions: positions === "" ? 1 : Number(positions),
-    needed_by: /^\d{4}-\d{2}-\d{2}$/.test(neededBy) ? neededBy : null,
+    needed_by: isIsoDate(neededBy) ? neededBy : null,
     notes: str(form.notes, 4000),
   };
   if (data.title.length < 2) errors.title = "Enter the role the client needs.";

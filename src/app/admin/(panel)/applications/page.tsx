@@ -7,6 +7,7 @@ import { clientNames, listApplications, openingOptions, recruiterOptions } from 
 import { APPLICATION_SOURCES, APPLICATION_SOURCE_LABELS, APPLICATION_STATUSES, APPLICATION_STATUS_LABELS, DATE_RANGES } from "@/lib/data/constants";
 import { ApplicationStatusBadge, Badge, EmptyState, Notice, PageHeader, Pagination, StatCard, formatDateTime, withParams } from "@/components/admin/ui";
 import { applicationFilters } from "../../filters";
+import { BulkApplications, BulkPageCheck, BulkRowCheck, type BulkPerms } from "@/components/admin/bulk-applications";
 
 export const metadata: Metadata = { title: "Applications" };
 
@@ -27,6 +28,15 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
   const url = (changes: Record<string, string | undefined>) => withParams("/admin/applications", current, { page: undefined, ...changes });
   const exportQuery = new URLSearchParams(Object.entries(current).filter(([, v]) => v) as [string, string][]).toString();
   const filtered = Object.values(search).some(Boolean);
+  const perms: BulkPerms = {
+    status: can(me.role, "applications.update"),
+    assign: can(me.role, "applications.update"),
+    tag: can(me.role, "candidates.edit"),
+    followup: can(me.role, "candidates.edit"),
+    zip: can(me.role, "resumes.download"),
+    export: can(me.role, "applications.export"),
+  };
+  const bulk = Object.values(perms).some(Boolean);
 
   return (
     <>
@@ -164,10 +174,24 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
 
       <div className="mt-5">
         {rows.length ? (
-          <div className="card overflow-x-auto">
+          <BulkApplications
+            key={exportQuery}
+            pageIds={bulk ? rows.map((r) => r.id) : []}
+            total={stats.total}
+            filters={current}
+            perms={perms}
+            stages={APPLICATION_STATUSES.map((s) => ({ value: s, label: APPLICATION_STATUS_LABELS[s] }))}
+            recruiters={recruiters.map((r) => ({ value: r.id, label: r.name }))}
+          >
+          <div className="card relative overflow-x-auto">
             <table className="a-table">
               <thead>
                 <tr>
+                  {bulk && (
+                    <th className="w-8">
+                      <BulkPageCheck />
+                    </th>
+                  )}
                   <th>#</th>
                   <th>Candidate</th>
                   <th>Position</th>
@@ -181,6 +205,11 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
               <tbody>
                 {rows.map((a) => (
                   <tr key={a.id}>
+                    {bulk && (
+                      <td>
+                        <BulkRowCheck id={a.id} label={`#${a.number} ${a.full_name}`} />
+                      </td>
+                    )}
                     <td className="tabular-nums text-muted">{a.number}</td>
                     <td className="min-w-48">
                       <Link href={`/admin/applications/${a.id}`} className="font-medium hover:text-brand-600">
@@ -227,6 +256,7 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
               </tbody>
             </table>
           </div>
+          </BulkApplications>
         ) : (
           <EmptyState title={filtered ? "No applications match these filters" : "No applications yet"} icon={FileText}>
             {filtered ? "Try a wider date range or clear the filters." : "Applications from the website will appear here as they arrive."}

@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db/client";
 import { ENQUIRY_STATUSES, type EnquiryStatus } from "./constants";
+import { isIsoDate } from "@/lib/dates";
 
 export type Enquiry = {
   id: string;
@@ -37,8 +38,8 @@ export async function listEnquiries({ q, status, from, to }: { q?: string; statu
   };
   if (q?.trim()) add((n) => `(name ILIKE $${n} OR company ILIKE $${n} OR email ILIKE $${n} OR phone ILIKE $${n} OR service ILIKE $${n} OR message ILIKE $${n})`, `%${q.trim().slice(0, 100)}%`);
   if (status && (ENQUIRY_STATUSES as readonly string[]).includes(status)) add((n) => `status = $${n}`, status);
-  if (from && /^\d{4}-\d{2}-\d{2}$/.test(from)) add((n) => `created_at >= ($${n}::date::timestamp AT TIME ZONE 'Asia/Kolkata')`, from);
-  if (to && /^\d{4}-\d{2}-\d{2}$/.test(to)) add((n) => `created_at < (($${n}::date + 1)::timestamp AT TIME ZONE 'Asia/Kolkata')`, to);
+  if (from && isIsoDate(from)) add((n) => `created_at >= ($${n}::date::timestamp AT TIME ZONE 'Asia/Kolkata')`, from);
+  if (to && isIsoDate(to)) add((n) => `created_at < (($${n}::date + 1)::timestamp AT TIME ZONE 'Asia/Kolkata')`, to);
   const sql = where.length ? `WHERE ${where.join(" AND ")}` : "";
   const offset = (Math.max(1, page) - 1) * pageSize;
   const rows = await conn.query<Enquiry>(`SELECT * FROM enquiries ${sql} ORDER BY created_at DESC LIMIT ${pageSize} OFFSET ${offset}`, params);

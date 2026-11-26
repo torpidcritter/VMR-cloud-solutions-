@@ -52,7 +52,7 @@ describe("schema", () => {
   it("applies migrations once and records the version", async () => {
     const conn = await db();
     const rows = await conn.query<{ version: number }>(`SELECT version FROM schema_migrations ORDER BY version`);
-    expect(rows.map((r) => Number(r.version))).toEqual([1, 2, 3, 4, 5]);
+    expect(rows.map((r) => Number(r.version))).toEqual([1, 2, 3, 4, 5, 6]);
   });
 });
 
@@ -771,5 +771,161 @@ describe("ATS: client CRM, candidate email and notifications", () => {
     expect(await openNotification(n.id, salesId)).toBe("/admin");
     await markAllRead(salesId);
     expect(await unreadCount(salesId)).toBe(0);
+  });
+});
+
+describe("ATS: tasks, analytics and bulk actions", () => {
+  const tasks = () => import("@/lib/data/tasks");
+  const bulk = () => import("@/lib/data/bulk");
+  let adminId = "";
+  let recruiterId = "";
+  let viewerId = "";
+  const made: { id: string; candidateId: string; number: string }[] = [];
+  const fd = (o: Record<string, string>) => {
+    const f = new FormData();
+    for (const [k, v] of Object.entries(o)) f.append(k, v);
+    return f;
+  };
+
+  beforeAll(async () => {
+    const all = await users.listAdmins();
+    adminId = all.find((u) => u.role === "super_admin")!.id;
+    viewerId = all.find((u) => u.role === "viewer")!.id;
+    recruiterId = await users.createAdmin({ email: "bulk.recruiter@example.test", name: "Bulk Recruiter", role: "recruiter", password: "bulk-pass-42", mustChange: false });
+    for (const n of ["One", "Two", "Three"]) {
+      const r = await apps.recordApplication({
+        candidate: { email: `bulk.${n.toLowerCase()}@example.test`, fullName: `Bulk Tester ${n}` },
+        source: "careers",
+        position: "SAP Basis",
+        experience: "3–5 years",
+        ...(n === "Three" ? {} : { resume: { path: `applications/2026/11/00000000-0000-4000-8000-00000000000${n.length}/resume.pdf`, name: "cv.pdf", size: 10, type: "application/pdf" } }),
+      });
+      made.push({ id: r.id, candidateId: r.candidateId, number: String(r.number) });
+    }
+  });
+
+  it("gives tasks.manage and analytics to the working roles only", async () => {
+    const { can } = await import("@/lib/auth/permissions");
+    expect(["super_admin", "recruiter", "sales", "viewer"].map((r) => can(r, "tasks.manage"))).toEqual([true, true, true, false]);
+    expect(["super_admin", "recruiter", "sales", "viewer"].map((r) => can(r, "analytics.view"))).toEqual([true, true, true, false]);
+  });
+
+  it("keeps tasks with due filters, ticks them off once and claims each reminder once", async () => {
+    const { createTask, listTasks, taskCounts, setTaskDone, claimDueReminders, parseTask, getTask } = await tasks();
+    const { istToday } = await import("@/lib/data/constants");
+    const today = istToday();
+    const yesterday = new Date(Date.parse(`${today}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+    expect(parseTask({ title: " ", due_on: "2026-02-31x" }, adminId).errors).toMatchObject({ title: expect.any(String), due_on: expect.any(String) });
+
+    const overdue = (await createTask(parseTask({ title: "Call back the candidate", due_on: yesterday, priority: "high", application_id: made[0].id }, recruiterId).data, adminId))!;
+    const dueToday = (await createTask(parseTask({ title: "Send the shortlist", due_on: today }, recruiterId).data, adminId))!;
+    await createTask(parseTask({ title: "Someday", priority: "low" }, recruiterId).data, recruiterId);
+    // An inactive or unknown owner can't be given a task.
+    expect(await createTask(parseTask({ title: "Nobody", owner_id: "00000000-0000-4000-8000-000000000000" }, recruiterId).data, adminId)).toBeNull();
+
+    // Linking an application brings its candidate along.
+    expect((await getTask(overdue))!.candidate_id).toBe(made[0].candidateId);
+    expect((await listTasks({ owner: recruiterId, status: "open", due: "overdue" })).map((t) => t.title)).toEqual(["Call back the candidate"]);
+    expect((await listTasks({ owner: recruiterId, status: "open", due: "today" })).map((t) => t.title)).toEqual(["Send the shortlist"]);
+    expect((await listTasks({ owner: recruiterId, status: "open", due: "none" })).map((t) => t.title)).toEqual(["Someday"]);
+    expect(await taskCounts(recruiterId)).toEqual({ open: 3, overdue: 1, today: 1 });
+
+    const first = await claimDueReminders(today);
+    expect(first.tasks.find((t) => t.owner_id === recruiterId)).toEqual({ owner_id: recruiterId, overdue: 1, due_today: 1 });
+    expect((await claimDueReminders(today)).tasks.find((t) => t.owner_id === recruiterId)).toBeUndefined();
+
+    expect(await setTaskDone(dueToday, true, recruiterId)).toBe(true);
+    expect(await setTaskDone(dueToday, true, recruiterId)).toBe(false);
+    expect(await setTaskDone(overdue, true, recruiterId)).toBe(true);
+    expect(await taskCounts(recruiterId)).toEqual({ open: 1, overdue: 0, today: 0 });
+    const { getCandidate } = await import("@/lib/data/candidates");
+    const timeline = (await getCandidate(made[0].candidateId))!.timeline.filter((e) => e.kind === "task").map((e) => e.body);
+    expect(timeline).toEqual(["Task done: Call back the candidate", "Task added: Call back the candidate"]);
+  });
+
+  it("lets anyone keep their own tasks but only managers give tasks to others", async () => {
+    await session.signIn("viewer@example.com", "viewer-pass-42");
+    const { createTaskAction } = await import("@/app/admin/actions/tasks");
+    expect(await createTaskAction({}, fd({ title: "My own reminder" }))).toMatchObject({ ok: true });
+    expect((await createTaskAction({}, fd({ title: "For someone else", owner_id: recruiterId }))).error).toMatch(/only add tasks for yourself/);
+    const { listTasks } = await tasks();
+    expect((await listTasks({ owner: viewerId })).map((t) => t.title)).toEqual(["My own reminder"]);
+    await session.signOut();
+  });
+
+  it("changes many applications in one statement, writes each timeline and skips those already done", async () => {
+    const { bulkSetStatus, bulkAssign, bulkTagCandidates, bulkFollowUp, resumeRefs } = await bulk();
+    const ids = made.map((m) => m.id);
+    expect(await bulkSetStatus([...ids, "junk", ids[0]], "screening", adminId)).toBe(3);
+    expect(await bulkSetStatus(ids, "screening", adminId)).toBe(0);
+    expect(await bulkSetStatus(ids, "nonsense" as never, adminId)).toBe(0);
+    const conn = await db();
+    const [ev] = await conn.query<{ n: number }>(`SELECT count(*)::int AS n FROM application_events WHERE application_id = ANY($1::uuid[]) AND kind = 'status' AND details->>'bulk' = 'true'`, [ids]);
+    expect(Number(ev.n)).toBe(3);
+
+    // Only active Super Admins and Recruiters can be given applications.
+    expect(await bulkAssign(ids, viewerId, adminId)).toBe(0);
+    expect(await bulkAssign(ids, recruiterId, adminId)).toBe(3);
+    expect(await bulkAssign(ids, recruiterId, adminId)).toBe(0);
+    expect((await apps.listApplications({ assigned: recruiterId, ids })).rows).toHaveLength(3);
+
+    expect(await bulkTagCandidates(ids, "Basis 2026", adminId)).toBe(3);
+    expect(await bulkTagCandidates(ids, "basis 2026", adminId)).toBe(0);
+    expect(await bulkFollowUp(ids, "2026-12-01", adminId)).toBe(3);
+    expect(await bulkFollowUp(ids, "2026-12-01", adminId)).toBe(0);
+    expect(await bulkFollowUp(ids, "1 Dec", adminId)).toBe(0);
+    const [c] = await conn.query<{ tags: string[]; follow_up_on: string }>(`SELECT tags, to_char(follow_up_on, 'YYYY-MM-DD') AS follow_up_on FROM candidates WHERE id = $1`, [made[1].candidateId]);
+    expect(c).toEqual({ tags: ["Basis 2026"], follow_up_on: "2026-12-01" });
+
+    expect((await resumeRefs(ids)).map((r) => r.full_name)).toEqual(["Bulk Tester One", "Bulk Tester Two"]);
+    expect((await apps.listApplications({ ids: [] })).rows).toHaveLength(0);
+    expect((await apps.listApplications({ ids: ["not-a-uuid"] })).rows).toHaveLength(0);
+  });
+
+  it("checks the right permission for each bulk action and can target everything matching the filters", async () => {
+    const { bulkApplicationsAction } = await import("@/app/admin/actions/bulk");
+    await session.signIn("viewer@example.com", "viewer-pass-42");
+    expect(await bulkApplicationsAction(fd({ op: "status", value: "shortlisted", ids: made[0].id }))).toMatchObject({ ok: false });
+    expect(await bulkApplicationsAction(fd({ op: "tag", value: "x", ids: made[0].id }))).toMatchObject({ ok: false });
+    await session.signOut();
+    const before = (await apps.getApplication(made[0].id))!.status;
+    expect(before).toBe("screening");
+
+    expect((await session.signIn("owner@example.com", "correct-horse-42")).ok).toBe(true);
+    expect(await bulkApplicationsAction(fd({ op: "drop_tables", ids: made[0].id }))).toEqual({ ok: false, error: "Unknown bulk action." });
+    expect(await bulkApplicationsAction(fd({ op: "status", value: "shortlisted", ids: "" }))).toMatchObject({ ok: false, error: "Select at least one application." });
+    expect(await bulkApplicationsAction(fd({ op: "assign", value: viewerId, ids: made[0].id }))).toMatchObject({ ok: false });
+    const res = await bulkApplicationsAction(fd({ op: "status", value: "shortlisted", all: "1", f_q: "bulk.t" }));
+    // "bulk.t" matches Two and Three only.
+    expect(res).toMatchObject({ ok: true, count: 2 });
+    expect((await apps.listApplications({ ids: made.map((m) => m.id), status: "shortlisted" })).rows.map((r) => r.full_name).sort()).toEqual(["Bulk Tester Three", "Bulk Tester Two"]);
+    const { listNotifications } = await import("@/lib/data/notifications");
+    expect(await bulkApplicationsAction(fd({ op: "assign", value: "none", ids: made[2].id }))).toMatchObject({ ok: true, count: 1 });
+    expect(await bulkApplicationsAction(fd({ op: "assign", value: recruiterId, ids: made[2].id }))).toMatchObject({ ok: true, count: 1 });
+    expect((await listNotifications(recruiterId))[0].title).toMatch(/assigned you 1 application$/);
+  });
+
+  it("counts analytics from live data and leaves client figures out unless allowed", async () => {
+    const { analytics, timeToHire, weeklyApplications, skillDemand } = await import("@/lib/data/analytics");
+    const conn = await db();
+    const [{ n }] = await conn.query<{ n: number }>(`SELECT count(*)::int AS n FROM applications`);
+    const all = await analytics({}, { withClients: false });
+    expect(all.clients).toBeNull();
+    expect(all.sources.reduce((s, r) => s + r.applications, 0)).toBe(Number(n));
+    expect(all.sources.find((s) => s.key === "careers")?.applications).toBeGreaterThanOrEqual(3);
+    expect(all.recruiters.find((r) => r.key === recruiterId)?.applications).toBe(3);
+    expect(all.hire.hires).toBeGreaterThanOrEqual(1);
+    expect(all.hire.avgDays).not.toBeNull();
+    expect(all.interviews.total).toBeGreaterThanOrEqual(1);
+    const withClients = await analytics({}, { withClients: true });
+    expect(withClients.clients?.length).toBeGreaterThan(0);
+
+    // A range in the future has nothing in it.
+    expect((await timeToHire({ from: "2099-01-01" })).hires).toBe(0);
+    const weeks = await weeklyApplications({});
+    expect(weeks.length).toBeLessThanOrEqual(26);
+    expect(weeks.reduce((s, w) => s + w.count, 0)).toBe(Number(n));
+    const skills = await skillDemand();
+    expect(skills.find((s) => s.skill === "SAP FI")?.openings).toBeGreaterThanOrEqual(1);
   });
 });

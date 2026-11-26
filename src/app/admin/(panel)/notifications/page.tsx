@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Bell, BriefcaseBusiness, Building2, CalendarClock, FileText, UserCheck } from "lucide-react";
+import { Bell, BellRing, BriefcaseBusiness, Building2, CalendarClock, FileText, ListTodo, UserCheck } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/session";
 import { listNotifications } from "@/lib/data/notifications";
 import { SubmitButton } from "@/components/admin/forms";
@@ -8,7 +8,7 @@ import { markAllReadAction, openNotificationAction } from "../../actions/notific
 
 export const metadata: Metadata = { title: "Notifications" };
 
-const ICON = { assign: UserCheck, interview: CalendarClock, application: FileText, client: Building2, requirement: BriefcaseBusiness } as const;
+const ICON = { assign: UserCheck, interview: CalendarClock, application: FileText, client: Building2, requirement: BriefcaseBusiness, task: ListTodo, followup: BellRing } as const;
 
 export default async function NotificationsPage() {
   const me = await requireAdmin();
@@ -57,7 +57,7 @@ export default async function NotificationsPage() {
         </ul>
       ) : (
         <EmptyState title="No notifications yet" icon={Bell}>
-          You&apos;ll hear here when someone assigns you a candidate, an application, an opening or a client, or puts you on an interview panel.
+          You&apos;ll hear here when someone assigns you a candidate, an application, an opening, a client or a task, puts you on an interview panel, or when your tasks and follow-ups come due.
         </EmptyState>
       )}
     </div>

@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { claimReminder, interviewIcs, interviewsNeedingReminder, releaseReminder } from "@/lib/data/interviews";
 import { INTERVIEW_MODE_LABELS } from "@/lib/data/constants";
 import { escapeHtml, isMailConfigured, sendMail, tableHtml } from "@/lib/mailer";
+import { claimDueReminders } from "@/lib/data/tasks";
+import { notify } from "@/lib/data/notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -19,10 +21,35 @@ function authorised(req: Request) {
 const when = (iso: string) =>
   new Date(iso).toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" }) + " IST";
 
-/** Emails each interview panel once, about a day before. Safe to run as often as you like. */
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/** In-app nudges for tasks that are due or overdue and candidate follow-ups that have come due. */
+async function inAppReminders() {
+  const { tasks, followUps } = await claimDueReminders();
+  let notified = 0;
+  for (const t of tasks) {
+    const parts = [t.overdue ? `${plural(t.overdue, "overdue task")}` : "", t.due_today ? `${plural(t.due_today, "task")} due today` : ""].filter(Boolean);
+    notified += await notify([t.owner_id], null, "task", `You have ${parts.join(" and ")}`, "/admin/tasks");
+  }
+  for (const f of followUps) {
+    notified += await notify([f.owner_id], null, "followup", `${plural(f.count, "candidate follow-up")} due`, "/admin/candidates?followUp=due");
+  }
+  return notified;
+}
+
+/**
+ * Emails each interview panel once, about a day before, and posts in-app
+ * reminders for due tasks and follow-ups. Safe to run as often as you like.
+ */
 export async function GET(req: Request) {
   if (!authorised(req)) return NextResponse.json({ error: "Not allowed" }, { status: 401 });
-  if (!isMailConfigured()) return NextResponse.json({ sent: 0, skipped: "Email is not configured" });
+  let notified = 0;
+  try {
+    notified = await inAppReminders();
+  } catch (err) {
+    console.error("[cron:reminders] in-app reminders failed", err instanceof Error ? err.message : err);
+  }
+  if (!isMailConfigured()) return NextResponse.json({ sent: 0, notified, skipped: "Email is not configured" });
 
   const origin = process.env.ADMIN_ORIGIN?.replace(/\/$/, "") || new URL(req.url).origin;
   const due = await interviewsNeedingReminder(24);
@@ -59,5 +86,5 @@ export async function GET(req: Request) {
       failed.push(i.id);
     }
   }
-  return NextResponse.json({ due: due.length, sent, failed: failed.length });
+  return NextResponse.json({ due: due.length, sent, failed: failed.length, notified });
 }

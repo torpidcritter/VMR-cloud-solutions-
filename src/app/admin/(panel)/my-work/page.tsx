@@ -7,12 +7,19 @@ import { APPLICATION_STATUSES, APPLICATION_STATUS_LABELS } from "@/lib/data/cons
 import { ApplicationStatusBadge, OpeningStatusBadge, PageHeader, Panel, StatCard, formatDate, formatDateTime } from "@/components/admin/ui";
 import { PriorityBadge } from "@/components/admin/candidate-ui";
 import { InterviewList } from "@/components/admin/interview-ui";
+import { can } from "@/lib/auth/permissions";
+import { istToday } from "@/lib/data/constants";
+import { listTasks } from "@/lib/data/tasks";
+import { TaskList } from "@/components/admin/task-list";
 
 export const metadata: Metadata = { title: "My work" };
 
 export default async function MyWorkPage() {
   const me = await requireAdmin("applications.view");
-  const w = await myWork(me.id);
+  const [w, openTasks] = await Promise.all([myWork(me.id), listTasks({ owner: me.id, status: "open" }, 50)]);
+  // Overdue, due within a week, or undated: the ones worth seeing first.
+  const weekOut = new Date(new Date(`${istToday()}T00:00:00Z`).getTime() + 7 * 86_400_000).toISOString().slice(0, 10);
+  const soon = openTasks.filter((t) => !t.due_on || t.due_on <= weekOut).slice(0, 8);
   const month = new Date().toLocaleDateString("en-IN", { month: "long", timeZone: "Asia/Kolkata" });
   const left = w.target !== null ? w.target - w.hiresThisMonth : null;
   const targetHint = left === null ? "No target set this month" : left > 0 ? `${left} to go to reach the target` : "Target reached";
@@ -73,6 +80,18 @@ export default async function MyWorkPage() {
         </div>
 
         <div className="grid min-w-0 content-start gap-6">
+          <Panel
+            title={`My tasks${openTasks.length ? ` (${openTasks.length} open)` : ""}`}
+            bodyClass=""
+            actions={
+              <Link href="/admin/tasks" className="text-sm text-brand-600 hover:underline">
+                All tasks
+              </Link>
+            }
+          >
+            <TaskList tasks={soon} meId={me.id} canManage={can(me.role, "tasks.manage")} showOwner={false} empty={openTasks.length ? "Nothing due in the next 7 days." : "No open tasks."} />
+          </Panel>
+
           <Panel title="Follow-ups due" bodyClass="">
             {w.followUps.length ? (
               <ul className="divide-y divide-line">

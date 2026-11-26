@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Activity,
+  BarChart3,
   BriefcaseBusiness,
   Building2,
   CalendarClock,
@@ -13,6 +14,7 @@ import {
   FileText,
   FolderHeart,
   LayoutDashboard,
+  ListTodo,
   Menu,
   MessageSquare,
   Settings,
@@ -23,9 +25,11 @@ import {
 
 const ICONS = {
   dashboard: LayoutDashboard,
+  analytics: BarChart3,
   pipeline: Columns3,
   interviews: CalendarClock,
   mywork: ClipboardList,
+  tasks: ListTodo,
   applications: FileText,
   candidates: Users,
   pools: FolderHeart,

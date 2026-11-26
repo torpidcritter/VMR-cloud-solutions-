@@ -2,6 +2,7 @@ import "server-only";
 import { pgTermRegex, termPattern } from "@/lib/matching";
 import { db, type Statement } from "@/lib/db/client";
 import { APPLICATION_STATUSES, AVAILABILITY_OPTIONS, CANDIDATE_PRIORITIES, type ApplicationStatus, type CandidatePriority } from "./constants";
+import { isIsoDate } from "@/lib/dates";
 
 /**
  * One central profile per candidate (matched by email). Applications, notes,
@@ -9,7 +10,7 @@ import { APPLICATION_STATUSES, AVAILABILITY_OPTIONS, CANDIDATE_PRIORITIES, type 
  */
 
 const isUuid = (v?: string | null) => !!v && /^[0-9a-f-]{36}$/i.test(v);
-const isDate = (v?: string | null) => !!v && /^\d{4}-\d{2}-\d{2}$/.test(v);
+const isDate = (v?: string | null) => isIsoDate(v);
 
 export type Candidate = {
   id: string;

@@ -27,6 +27,8 @@ export type Permission =
   | "clients.edit"
   | "clients.delete"
   | "email.send"
+  | "tasks.manage"
+  | "analytics.view"
   | "applications.view"
   | "applications.update"
   | "applications.delete"
@@ -52,6 +54,8 @@ const ALL: Permission[] = [
   "clients.edit",
   "clients.delete",
   "email.send",
+  "tasks.manage",
+  "analytics.view",
   "applications.view",
   "applications.update",
   "applications.delete",
@@ -77,13 +81,15 @@ const GRANTS: Record<Role, Permission[]> = {
     "clients.view",
     "clients.edit",
     "email.send",
+    "tasks.manage",
+    "analytics.view",
     "applications.view",
     "applications.update",
     "applications.export",
     "resumes.download",
     "enquiries.view",
   ],
-  sales: ["dashboard.view", "openings.view", "clients.view", "clients.edit", "applications.view", "resumes.download", "enquiries.view", "enquiries.update"],
+  sales: ["dashboard.view", "openings.view", "clients.view", "clients.edit", "tasks.manage", "analytics.view", "applications.view", "resumes.download", "enquiries.view", "enquiries.update"],
   viewer: ["dashboard.view", "openings.view", "applications.view", "enquiries.view"],
 };
 

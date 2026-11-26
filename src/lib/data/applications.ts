@@ -3,6 +3,7 @@ import { notify } from "./notifications";
 import { db } from "@/lib/db/client";
 import { normaliseEmail } from "@/lib/auth/session";
 import { ACTIVE_SHORTLIST, APPLICATION_SOURCES, APPLICATION_STATUSES, FUNNEL_STAGES, type ApplicationSource, type ApplicationStatus } from "./constants";
+import { isIsoDate } from "@/lib/dates";
 
 /* ------------------------------------------------------------------ */
 /* Saving submissions from the website                                  */
@@ -102,6 +103,8 @@ export type ApplicationFilters = {
   candidate?: string;
   /** A recruiter's id, or "none" for unassigned. */
   assigned?: string;
+  /** Only these applications (a bulk selection). An empty list matches nothing. */
+  ids?: string[];
 };
 
 export type ApplicationRow = {
@@ -137,7 +140,7 @@ export type ApplicationRow = {
   tags: string[];
 };
 
-const isDate = (v?: string) => !!v && /^\d{4}-\d{2}-\d{2}$/.test(v);
+const isDate = (v?: string | null) => isIsoDate(v);
 const isUuid = (v?: string) => !!v && /^[0-9a-f-]{36}$/i.test(v);
 
 function whereClause(f: ApplicationFilters) {
@@ -165,6 +168,11 @@ function whereClause(f: ApplicationFilters) {
   if (isUuid(f.candidate)) add((n) => `a.candidate_id = $${n}`, f.candidate);
   if (f.assigned === "none") where.push(`a.assigned_to IS NULL`);
   else if (isUuid(f.assigned)) add((n) => `a.assigned_to = $${n}`, f.assigned);
+  if (f.ids) {
+    const ids = [...new Set(f.ids.filter((v) => isUuid(v)))].slice(0, 500);
+    if (ids.length) add((n) => `a.id = ANY($${n}::uuid[])`, ids);
+    else where.push("false");
+  }
   return { sql: where.length ? `WHERE ${where.join(" AND ")}` : "", params };
 }
 

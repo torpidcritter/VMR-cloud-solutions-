@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import { db, isDbConfigured } from "@/lib/db/client";
 import { clientIdFor } from "./clients";
 import { EMPLOYMENT_TYPES, OPENING_STATUSES, WORK_MODES, type OpeningStatus } from "./constants";
+import { isIsoDate } from "@/lib/dates";
 
 export type Opening = {
   id: string;
@@ -60,7 +61,7 @@ export function parseOpening(form: Record<string, unknown>): { data: OpeningInpu
       .filter(Boolean)
       .slice(0, 30),
     status: (OPENING_STATUSES as readonly string[]).includes(str(form.status)) ? (str(form.status) as OpeningStatus) : "draft",
-    closing_date: /^\d{4}-\d{2}-\d{2}$/.test(str(form.closing_date)) ? str(form.closing_date) : null,
+    closing_date: isIsoDate(str(form.closing_date)) ? str(form.closing_date) : null,
     vacancies: str(form.vacancies) === "" ? 1 : Number(str(form.vacancies)),
     // Shown unless explicitly hidden ("hide" from the form, false from code).
     salary_visible: !(form.salary_visible === "hide" || form.salary_visible === false),

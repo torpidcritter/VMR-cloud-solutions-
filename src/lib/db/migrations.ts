@@ -397,4 +397,36 @@ export const MIGRATIONS: { version: number; statements: string[] }[] = [
       `CREATE INDEX notifications_user ON notifications(user_id, created_at DESC)`,
     ],
   },
+  {
+    // ATS phase 5: tasks, and the daily reminder bookkeeping for tasks and follow-ups.
+    version: 6,
+    statements: [
+      `CREATE TABLE tasks (
+         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+         title text NOT NULL CHECK (length(title) BETWEEN 1 AND 200),
+         notes text NOT NULL DEFAULT '',
+         owner_id uuid NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+         created_by uuid REFERENCES admin_users(id) ON DELETE SET NULL,
+         due_on date,
+         priority text NOT NULL DEFAULT 'normal' CHECK (priority IN ('low','normal','high','urgent')),
+         status text NOT NULL DEFAULT 'open' CHECK (status IN ('open','done')),
+         candidate_id uuid REFERENCES candidates(id) ON DELETE CASCADE,
+         application_id uuid REFERENCES applications(id) ON DELETE SET NULL,
+         opening_id uuid REFERENCES job_openings(id) ON DELETE SET NULL,
+         client_id uuid REFERENCES clients(id) ON DELETE CASCADE,
+         completed_at timestamptz,
+         completed_by uuid REFERENCES admin_users(id) ON DELETE SET NULL,
+         reminded_on date,
+         created_at timestamptz NOT NULL DEFAULT now(),
+         updated_at timestamptz NOT NULL DEFAULT now()
+       )`,
+      `CREATE INDEX tasks_owner_open ON tasks(owner_id, due_on) WHERE status = 'open'`,
+      `CREATE INDEX tasks_candidate ON tasks(candidate_id) WHERE candidate_id IS NOT NULL`,
+      `CREATE INDEX tasks_client ON tasks(client_id) WHERE client_id IS NOT NULL`,
+      `CREATE INDEX tasks_opening ON tasks(opening_id) WHERE opening_id IS NOT NULL`,
+      `ALTER TABLE candidates ADD COLUMN follow_up_reminded_on date`,
+      `ALTER TABLE client_events DROP CONSTRAINT client_events_kind_check`,
+      `ALTER TABLE client_events ADD CONSTRAINT client_events_kind_check CHECK (kind IN ('note','edit','contact','requirement','opening','task'))`,
+    ],
+  },
 ];

@@ -16,6 +16,7 @@ const NAV: { label: string; items: (NavItem & { perm: Permission })[] }[] = [
     items: [
       { href: "/admin", label: "Dashboard", icon: "dashboard", perm: "dashboard.view" },
       { href: "/admin/my-work", label: "My work", icon: "mywork", perm: "applications.view" },
+      { href: "/admin/analytics", label: "Analytics", icon: "analytics", perm: "analytics.view" },
     ],
   },
   {
@@ -24,6 +25,7 @@ const NAV: { label: string; items: (NavItem & { perm: Permission })[] }[] = [
       { href: "/admin/pipeline", label: "Pipeline", icon: "pipeline", perm: "applications.view" },
       { href: "/admin/applications", label: "Applications", icon: "applications", perm: "applications.view" },
       { href: "/admin/interviews", label: "Interviews", icon: "interviews", perm: "applications.view" },
+      { href: "/admin/tasks", label: "Tasks", icon: "tasks", perm: "dashboard.view" },
     ],
   },
   {

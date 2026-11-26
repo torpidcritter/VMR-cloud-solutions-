@@ -12,6 +12,9 @@ import { matchOpeningsForCandidate } from "@/lib/data/matching";
 import { composeContext, listEmails, listTemplates } from "@/lib/data/email";
 import { isMailConfigured } from "@/lib/mailer";
 import { EmailComposer } from "@/components/admin/crm-ui";
+import { listTasks, taskOwnerOptions } from "@/lib/data/tasks";
+import { TaskList } from "@/components/admin/task-list";
+import { TaskForm } from "@/components/admin/task-ui";
 import { AddToPoolForm, MatchReasons, PutForwardButton, ScoreRing, UploadResumeForm } from "@/components/admin/talent-ui";
 import { InterviewList } from "@/components/admin/interview-ui";
 import { APPLICATION_SOURCE_LABELS, CANDIDATE_PRIORITIES, CANDIDATE_PRIORITY_LABELS } from "@/lib/data/constants";
@@ -27,7 +30,7 @@ import { QuickField } from "./QuickField";
 export const metadata: Metadata = { title: "Candidate" };
 
 const one = (v: unknown) => (typeof v === "string" ? v.slice(0, 40) : undefined);
-const KINDS = ["note", "email", "status", "interview", "assign", "edit", "file", "pool", "merge"] as const;
+const KINDS = ["note", "email", "task", "status", "interview", "assign", "edit", "file", "pool", "merge"] as const;
 
 export default async function CandidatePage({
   params,
@@ -49,7 +52,8 @@ export default async function CandidatePage({
   const canForward = can(me.role, "applications.update");
   const canEmail = can(me.role, "email.send");
   const mailReady = isMailConfigured();
-  const [recruiters, interviews, files, pools, allPools, matches, emails, templates, compose] = await Promise.all([
+  const canManageTasks = can(me.role, "tasks.manage");
+  const [recruiters, interviews, files, pools, allPools, matches, emails, templates, compose, tasks, taskOwners] = await Promise.all([
     editable ? recruiterOptions() : Promise.resolve([]),
     listInterviews({ candidateId: c.id }, 50),
     listCandidateFiles(c.id),
@@ -59,7 +63,10 @@ export default async function CandidatePage({
     listEmails(c.id),
     canEmail && mailReady ? listTemplates({ activeOnly: true }) : Promise.resolve([]),
     canEmail && mailReady ? composeContext(c.id, me.name) : Promise.resolve(null),
+    listTasks({ candidate: c.id }, 50),
+    canManageTasks ? taskOwnerOptions() : Promise.resolve([]),
   ]);
+  const openTasks = tasks.filter((t) => t.status === "open");
   const freePools = allPools.filter((p) => !pools.some((x) => x.id === p.id));
   const today = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
   const followDue = !!c.follow_up_on && c.follow_up_on <= today;
@@ -286,6 +293,23 @@ export default async function CandidatePage({
 
           <Panel title={`Interviews${interviews.length ? ` (${interviews.length})` : ""}`} bodyClass="">
             <InterviewList items={[...interviews].reverse()} empty="No interviews yet. Schedule one from an application." showCandidate={false} />
+          </Panel>
+
+          <Panel title={`Tasks${openTasks.length ? ` (${openTasks.length} open)` : ""}`} bodyClass="">
+            <TaskList tasks={tasks} meId={me.id} canManage={canManageTasks} showLinks={false} empty="No tasks for this candidate." />
+            <details className="border-t border-line px-5 py-4">
+              <summary className="cursor-pointer text-sm font-medium text-brand-600">Add a task</summary>
+              <div className="mt-4">
+                <TaskForm
+                  meId={me.id}
+                  owners={taskOwners}
+                  idPrefix="ctk"
+                  compact
+                  links={{ candidate_id: c.id }}
+                  applications={c.applications.map((a) => ({ id: a.id, label: `#${a.number} ${a.opening_title ?? a.position}`.slice(0, 80) }))}
+                />
+              </div>
+            </details>
           </Panel>
 
           <Panel title={`Emails${emails.length ? ` (${emails.length})` : ""}`} bodyClass="">

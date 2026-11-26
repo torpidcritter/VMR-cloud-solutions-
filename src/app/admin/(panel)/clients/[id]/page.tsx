@@ -9,13 +9,16 @@ import { REQUIREMENT_STATUSES, REQUIREMENT_STATUS_LABELS, type RequirementStatus
 import { ConfirmButton } from "@/components/admin/forms";
 import { Badge, ClientStatusBadge, Notice, OpeningStatusBadge, PageHeader, Panel, StatCard, formatDate, formatDateTime, type Tone } from "@/components/admin/ui";
 import { ClientForm, ClientNoteForm, ContactForm, RequirementForm } from "@/components/admin/crm-ui";
+import { listTasks, taskOwnerOptions } from "@/lib/data/tasks";
+import { TaskList } from "@/components/admin/task-list";
+import { TaskForm } from "@/components/admin/task-ui";
 import { deleteClientAction, deleteContactAction, deleteRequirementAction, primaryContactAction, requirementStatusAction } from "../../../actions/clients";
 
 export const metadata: Metadata = { title: "Client" };
 
 const one = (v: unknown) => (typeof v === "string" ? v.slice(0, 40) : undefined);
 const REQ_TONE: Record<RequirementStatus, Tone> = { open: "blue", on_hold: "amber", filled: "green", cancelled: "grey" };
-const EVENT_LABEL: Record<string, string> = { note: "Note", edit: "Details", contact: "Contact", requirement: "Requirement", opening: "Opening" };
+const EVENT_LABEL: Record<string, string> = { note: "Note", edit: "Details", contact: "Contact", requirement: "Requirement", opening: "Opening", task: "Task" };
 
 export default async function ClientPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const me = await requireAdmin("clients.view");
@@ -27,12 +30,15 @@ export default async function ClientPage({ params, searchParams }: { params: Pro
   // Which openings belong to a client is confidential to roles that may see client names on openings.
   const seeOpenings = can(me.role, "openings.viewClient");
   const canOpen = can(me.role, "openings.edit");
-  const [contacts, requirements, openings, events, managers] = await Promise.all([
+  const canManageTasks = can(me.role, "tasks.manage");
+  const [contacts, requirements, openings, events, managers, tasks, taskOwners] = await Promise.all([
     listContacts(c.id),
     listRequirements(c.id),
     clientOpenings(c.id),
     listClientEvents(c.id),
     editing ? managerOptions() : Promise.resolve([]),
+    listTasks({ client: c.id }, 50),
+    canManageTasks ? taskOwnerOptions() : Promise.resolve([]),
   ]);
   const totals = openings.reduce((t, o) => ({ apps: t.apps + o.applications, live: t.live + o.in_process, placed: t.placed + o.placed }), { apps: 0, live: 0, placed: 0 });
   const openCount = openings.filter((o) => o.status !== "closed").length;
@@ -330,6 +336,16 @@ export default async function ClientPage({ params, searchParams }: { params: Pro
                 </div>
               </details>
             )}
+          </Panel>
+
+          <Panel title={`Tasks${tasks.filter((t) => t.status === "open").length ? ` (${tasks.filter((t) => t.status === "open").length} open)` : ""}`} bodyClass="">
+            <TaskList tasks={tasks} meId={me.id} canManage={canManageTasks} showLinks={false} empty="No tasks for this client." />
+            <details className="border-t border-line px-5 py-4">
+              <summary className="cursor-pointer text-sm font-medium text-brand-600">Add a task</summary>
+              <div className="mt-4">
+                <TaskForm meId={me.id} owners={taskOwners} idPrefix="ktk" compact links={{ client_id: c.id }} />
+              </div>
+            </details>
           </Panel>
 
           <Panel title="Record">
