@@ -65,7 +65,11 @@ export function validateEnquiry(input: Record<string, unknown>) {
   return { data, errors };
 }
 
-export function validateApplication(input: Record<string, unknown>, file?: { size: number; type: string; name: string } | null) {
+/**
+ * `fixedPosition` is set when applying to a specific job opening: the
+ * position is then that opening's title instead of one of the career areas.
+ */
+export function validateApplication(input: Record<string, unknown>, file?: { size: number; type: string; name: string } | null, opts: { fixedPosition?: string } = {}) {
   const data = {
     fullName: str(input.fullName),
     email: str(input.email),
@@ -73,17 +77,31 @@ export function validateApplication(input: Record<string, unknown>, file?: { siz
     position: str(input.position),
     experience: str(input.experience),
     message: str(input.message),
+    consent: input.consent === "yes" || input.consent === "on" || input.consent === true,
   };
   const errors: Errors = {};
   if (data.fullName.length < 2) errors.fullName = "Please enter your full name.";
   if (data.fullName.length > 100) errors.fullName = "Name is too long.";
   if (!EMAIL_RE.test(data.email)) errors.email = "Please enter a valid email address.";
   if (!PHONE_RE.test(data.phone)) errors.phone = "Please enter a valid phone number.";
-  if (!positionOptions.includes(data.position)) errors.position = "Please choose the position you're applying for.";
+  if (opts.fixedPosition !== undefined) data.position = opts.fixedPosition;
+  else if (!positionOptions.includes(data.position)) errors.position = "Please choose the position you're applying for.";
   if (!experienceOptions.includes(data.experience)) errors.experience = "Please choose your experience.";
   if (data.message.length > 3000) errors.message = "Message is too long (maximum 3000 characters).";
   if (!file || file.size === 0) errors.resume = "Please attach your resume.";
   else if (file.size > RESUME_MAX_BYTES) errors.resume = "Resume must be 4 MB or smaller.";
   else if (!RESUME_TYPES[file.type] && !/\.(pdf|docx?)$/i.test(file.name)) errors.resume = "Please upload a PDF or Word document.";
+  if (!data.consent) errors.consent = "Please confirm you agree to us processing your details.";
   return { data, errors };
+}
+
+/** A random id for one form submission, so a retry or double click is saved once. */
+export function newSubmissionId(): string {
+  const c = globalThis.crypto;
+  if (typeof c?.randomUUID === "function") return c.randomUUID();
+  const b = c.getRandomValues(new Uint8Array(16));
+  b[6] = (b[6] & 0x0f) | 0x40;
+  b[8] = (b[8] & 0x3f) | 0x80;
+  const h = Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }

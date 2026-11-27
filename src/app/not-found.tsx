@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { services } from "@/content/services";
+import SiteLayout from "./(site)/layout";
 
 export default function NotFound() {
   return (
+    <SiteLayout>
     <section className="relative -mt-[var(--header-h)] overflow-hidden bg-gradient-to-b from-brand-50/70 to-page pt-[var(--header-h)]">
       <div aria-hidden className="pointer-events-none absolute inset-0 bg-grid mask-radial" />
       <div className="container-x relative py-24 md:py-32">
@@ -32,5 +34,6 @@ export default function NotFound() {
         </div>
       </div>
     </section>
+    </SiteLayout>
   );
 }

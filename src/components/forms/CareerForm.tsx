@@ -3,24 +3,28 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { ArrowRight, CheckCircle2, FileText, Loader2, Upload, X } from "lucide-react";
 import { describedBy, Field, Honeypot } from "./Field";
-import { experienceOptions, positionOptions, validateApplication, type Errors } from "@/lib/forms";
+import { experienceOptions, positionOptions, validateApplication, type Errors, newSubmissionId } from "@/lib/forms";
 import { site } from "@/content/site";
 
 type Status = "idle" | "sending" | "success" | "error";
 
-export function CareerForm() {
+/** `opening` is set on a job page: the position is fixed to that job. */
+export function CareerForm({ opening }: { opening?: { id: string; title: string } } = {}) {
+  const fixed = opening ? { fixedPosition: opening.title } : {};
   const [status, setStatus] = useState<Status>("idle");
   const [errors, setErrors] = useState<Errors>({});
   const [serverError, setServerError] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const startedAt = useRef(Date.now());
+  // The same id is sent on a retry, so the server saves this submission once.
+  const submissionId = useRef(newSubmissionId());
 
   function onFile(e: ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0] ?? null;
     setFile(f);
     if (f) {
-      const { errors: errs } = validateApplication({}, f);
+      const { errors: errs } = validateApplication({}, f, fixed);
       setErrors((prev) => {
         const next = { ...prev };
         if (errs.resume) next.resume = errs.resume;
@@ -40,7 +44,7 @@ export function CareerForm() {
     const form = e.currentTarget;
     const fd = new FormData(form);
     const values = Object.fromEntries(Array.from(fd.entries()).filter(([, v]) => typeof v === "string"));
-    const { errors: errs } = validateApplication(values, file);
+    const { errors: errs } = validateApplication(values, file, fixed);
     setErrors(errs);
     setServerError("");
     if (Object.keys(errs).length) {
@@ -49,6 +53,7 @@ export function CareerForm() {
       return;
     }
     fd.set("startedAt", String(startedAt.current));
+    fd.set("submissionId", submissionId.current);
     setStatus("sending");
     try {
       const res = await fetch("/api/careers", { method: "POST", body: fd });
@@ -81,6 +86,7 @@ export function CareerForm() {
           className="btn btn-secondary mt-8"
           onClick={() => {
             startedAt.current = Date.now();
+            submissionId.current = newSubmissionId();
             setStatus("idle");
           }}
         >
@@ -104,6 +110,12 @@ export function CareerForm() {
       <Field id="c-phone" label="Phone Number" required error={errors.phone}>
         <input id="c-phone" name="phone" type="tel" autoComplete="tel" inputMode="tel" className="field" aria-invalid={!!errors.phone} aria-describedby={describedBy("c-phone", errors.phone)} required />
       </Field>
+      {opening ? (
+        <>
+          <input type="hidden" name="openingId" value={opening.id} />
+          <input type="hidden" name="position" value={opening.title} />
+        </>
+      ) : (
       <Field id="position" label="Position Applied For" required error={errors.position}>
         <select id="position" name="position" defaultValue="" className="field" aria-invalid={!!errors.position} aria-describedby={describedBy("position", errors.position)} required>
           <option value="" disabled>
@@ -113,7 +125,8 @@ export function CareerForm() {
             <option key={o}>{o}</option>
           ))}
         </select>
-      </Field>
+        </Field>
+      )}
       <Field id="experience" label="Years of Experience" required error={errors.experience}>
         <select id="experience" name="experience" defaultValue="" className="field" aria-invalid={!!errors.experience} aria-describedby={describedBy("experience", errors.experience)} required>
           <option value="" disabled>
@@ -173,6 +186,34 @@ export function CareerForm() {
           aria-describedby={describedBy("c-message", errors.message)}
         />
       </Field>
+
+      <div className="sm:col-span-2">
+        <label className={`flex cursor-pointer gap-3 rounded-xl border p-4 text-sm leading-relaxed text-ink-soft ${errors.consent ? "border-accent-600" : "border-line"}`}>
+          <input
+            type="checkbox"
+            name="consent"
+            value="yes"
+            className="mt-0.5 size-[1.1rem] shrink-0 accent-[var(--color-btn)]"
+            aria-invalid={!!errors.consent}
+            aria-describedby={errors.consent ? "c-consent-error" : undefined}
+            required
+          />
+          <span>
+            I consent to {site.legalName} storing and processing my personal information and resume to assess my suitability for this and similar roles and to contact me about them, in line
+            with applicable data protection law and the{" "}
+            <a href="/privacy-policy#candidates" className="font-semibold text-brand-700 underline underline-offset-2">
+              Privacy Policy
+            </a>
+            . I can withdraw consent and ask for my data to be deleted at any time.
+            <span aria-hidden className="ml-0.5 text-accent-600">*</span>
+          </span>
+        </label>
+        {errors.consent && (
+          <p id="c-consent-error" className="field-error" role="alert">
+            {errors.consent}
+          </p>
+        )}
+      </div>
 
       {serverError && (
         <div role="alert" className="rounded-xl border border-accent-500/30 bg-accent-500/5 p-4 text-sm text-ink-soft sm:col-span-2">

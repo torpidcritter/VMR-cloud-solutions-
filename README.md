@@ -67,7 +67,43 @@ Limits: 4 MB per CV (Vercel's request limit is 4.5 MB). The rate limit is per se
 - Client and server validation share one schema (`src/lib/forms.ts`).
 - Spam protection: hidden honeypot field, minimum fill time, and 5 submissions / 10 min per IP.
 - Careers resumes: PDF/DOC/DOCX up to 4 MB, file signature checked, sent to HR as an attachment.
-- The success message only shows after the email has actually been sent.
+- With the database connected, every application, CV and enquiry is also saved for the admin panel. The visitor sees success only once the submission is saved or emailed.
+
+## Admin panel (`/admin`)
+
+Recruitment admin for job openings, applications, the talent bank and enquiries.
+
+**Switching it on (one time):**
+
+1. Vercel → Storage → Create → **Neon** (Postgres) and connect it to this project. Vercel adds `DATABASE_URL`. Tables are created automatically on first use.
+2. Add `ADMIN_SETUP_KEY` (any long secret phrase) under Settings → Environment Variables. Redeploy.
+3. Open `/admin/setup`, enter the key and create the first **Super Admin**. The page stops working once an admin exists.
+4. Add colleagues under **Users**. They get a temporary password and must choose their own at first sign-in.
+
+**What's inside:**
+
+- **Recruitment:** dashboard and My work; Kanban pipeline with ten stages; applications with filters, notes, recruiter assignment and bulk actions (stage, assign, tag, follow-up, resume ZIP, CSV of a selection); interviews with panels, feedback, calendar files and email reminders; tasks with due dates and daily in-app reminders.
+- **People:** one candidate profile per email with a full timeline and field-level change history, duplicate merge, uploaded resumes that are read for search, Talent Bank and talent pools, rule-based matching to openings that shows its reasons, and email from templates.
+- **Business:** job openings that appear on `/careers` (client names never reach the public site); clients with contacts, requirements and history; enquiries that can become clients.
+- **Analytics:** conversion by stage, time to hire, first response, results by source, opening, recruiter and client, skill demand, all with date ranges and CSV export.
+- **Admin:** users and roles, settings, email templates, in-app notifications, and an audit log of changes, record views and every sign-in attempt, with filters, CSV export and a retention period.
+
+**Daily job:** `vercel.json` calls `/api/cron/reminders` once a day. Set `CRON_SECRET` (16+ characters) in Vercel so it can run. It sends interview reminders (needs SMTP), posts task and follow-up reminders, and deletes audit entries older than the retention period set in Settings.
+
+**Security:** scrypt-hashed passwords, httpOnly session cookie (8 hours, and 60 minutes without activity), optional two-step sign-in with an authenticator app and recovery codes (Settings can require it for Super Admins), lockout after 5 wrong passwords, a per-IP limit on sign-in and the public forms shared by every server instance (kept in the database, IPs stored hashed), a Content-Security-Policy on every page, contact details masked for Viewer and Sales, roles checked on the server for every page, action and download. Client names on openings are never sent to the public site. Resumes stay in private storage and are streamed only to signed-in admins with the right role. Downloads of a selection only accept requests from the admin pages themselves. `/admin` is excluded from search engines.
+
+| Role | Can do |
+| --- | --- |
+| Super Admin | Everything, including users, settings, the audit log and deleting records |
+| Recruiter / HR | Openings (incl. client names), candidates, pipeline, interviews, clients, emails to candidates, bulk actions, analytics, resumes and CSV export |
+| Sales (SAP Practice) | Clients and enquiries; view openings and applications; tasks; analytics without client-opening links; download resumes |
+| Viewer | Read-only dashboard, openings, applications, enquiries; their own tasks |
+
+**Operations:** `GET /api/health` answers 200 when the site can take submissions and 503 when the database is down or behind the code (add `Authorization: Bearer <CRON_SECRET>` for storage, email and queue details). If the team email fails after a submission is saved, it is queued and retried by the daily job, with the resume attached. Server errors are logged as one JSON object per line. Deploying, rollback, monitoring, backups and restore are in [`docs/operations.md`](docs/operations.md).
+
+**Tests:** `npm test` runs the unit and integration tests. `npm run build:e2e && npm run test:e2e` runs the browser, concurrency and load tests against a production build ([`tests/e2e/README.md`](tests/e2e/README.md)). CI runs both, plus lint and type checks, on every push.
+
+**Local development:** `DB_DRIVER=pglite PGLITE_DIR=./.data/pglite ADMIN_SETUP_KEY=dev npm run dev` runs an embedded Postgres, no server needed.
 
 ## Before going live
 

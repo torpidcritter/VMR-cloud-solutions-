@@ -18,7 +18,16 @@ const eslintConfig = [
       "out/**",
       "build/**",
       "next-env.d.ts",
+      "shots/**",
     ],
+  },
+  {
+    // Browser test scripts run directly with Node (CommonJS).
+    files: ["tests/e2e/**/*.js"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+      "@typescript-eslint/no-unused-vars": "off",
+    },
   },
 ];
 

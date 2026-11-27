@@ -8,26 +8,33 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:e2e": "DB_DRIVER=pglite CV_STORAGE=local MAIL_TRANSPORT=log next build",
+    "test:e2e": "bash tests/e2e/run-all.sh"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.2.1",
     "@vercel/blob": "^2.9.0",
     "lucide-react": "^1.72.0",
     "next": "15.5.29",
     "nodemailer": "^10.5.0",
+    "qrcode": "^1.5.4",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "server-only": "^0.0.1"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.6.0",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/nodemailer": "^8.0.2",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.5.29",
+    "playwright": "1.63.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^3.2.4"

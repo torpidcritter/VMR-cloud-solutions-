@@ -1,8 +1,12 @@
 import type { MetadataRoute } from "next";
 import { services } from "@/content/services";
 import { site } from "@/content/site";
+import { listPublicOpenings } from "@/lib/data/openings";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export const revalidate = 3600;
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const jobs = await listPublicOpenings();
   const now = new Date();
   const pages = [
     "",
@@ -31,6 +35,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: now,
       changeFrequency: "monthly" as const,
       priority: 0.7,
+    })),
+    ...jobs.map((j) => ({
+      url: `${site.url}/careers/${j.slug}`,
+      lastModified: new Date(j.updated_at),
+      changeFrequency: "weekly" as const,
+      priority: 0.6,
     })),
   ];
 }

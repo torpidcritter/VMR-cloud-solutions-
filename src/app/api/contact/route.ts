@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { validateEnquiry } from "@/lib/forms";
 import { clientIp, looksLikeBot, rateLimited } from "@/lib/guard";
-import { MailNotConfiguredError, sendMail, tableHtml } from "@/lib/mailer";
-import { site } from "@/content/site";
+import { isMailConfigured, sendMail, tableHtml } from "@/lib/mailer";
+import { recordEnquiry } from "@/lib/data/enquiries";
+import { getSettings } from "@/lib/data/settings";
+import { saveSubmission } from "@/lib/submissions";
 
 export const runtime = "nodejs";
 
@@ -16,7 +18,7 @@ export async function POST(req: Request) {
 
   // Bots get a quiet "success" so they don't retry; nothing is sent.
   if (looksLikeBot(body.website, body.startedAt)) return NextResponse.json({ ok: true });
-  if (rateLimited(clientIp(req.headers))) {
+  if (await rateLimited(clientIp(req.headers))) {
     return NextResponse.json({ ok: false, error: "Too many submissions. Please try again in a few minutes." }, { status: 429 });
   }
 
@@ -33,21 +35,28 @@ export async function POST(req: Request) {
     ["Message", data.message],
   ];
 
-  try {
-    await sendMail({
-      to: process.env.CONTACT_TO || site.email.general,
-      replyTo: data.email,
-      subject: `Website enquiry: ${data.service} – ${data.name}${data.company ? ` (${data.company})` : ""}`,
-      text: rows.map(([k, v]) => `${k}: ${v || "—"}`).join("\n"),
-      html: tableHtml("New business enquiry from vmrcloudsolutions.com", rows),
-    });
-  } catch (err) {
-    console.error("[contact] send failed", err);
-    const notConfigured = err instanceof MailNotConfiguredError;
-    return NextResponse.json(
-      { ok: false, error: notConfigured ? "Online enquiries are temporarily unavailable." : "We couldn't send your enquiry just now." },
-      { status: 503 },
-    );
+  const saved = await saveSubmission("contact", () => recordEnquiry(data));
+  const settings = await getSettings();
+  const willEmail = settings.notifyEnquiries && isMailConfigured();
+  if (!saved && !willEmail) {
+    console.error("[contact] enquiry not saved: database and email both unavailable");
+    return NextResponse.json({ ok: false, error: "Online enquiries are temporarily unavailable." }, { status: 503 });
+  }
+  if (saved) rows.push(["Admin reference", `#${saved.number}`]);
+
+  if (willEmail) {
+    try {
+      await sendMail({
+        to: settings.enquiriesEmail,
+        replyTo: data.email,
+        subject: `Website enquiry: ${data.service} – ${data.name}${data.company ? ` (${data.company})` : ""}`,
+        text: rows.map(([k, v]) => `${k}: ${v || "—"}`).join("\n"),
+        html: tableHtml("New business enquiry from vmrcloudsolutions.com", rows),
+      });
+    } catch (err) {
+      console.error("[contact] send failed", err instanceof Error ? err.message : err);
+      if (!saved) return NextResponse.json({ ok: false, error: "We couldn't send your enquiry just now." }, { status: 503 });
+    }
   }
 
   return NextResponse.json({ ok: true });

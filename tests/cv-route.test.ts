@@ -9,6 +9,8 @@ let mailReady = true;
 vi.mock("@/lib/cv-storage", () => ({
   isStorageConfigured: () => storageReady,
   storeCv: (...args: unknown[]) => storeCv(...args),
+  deleteStoredFile: async () => {},
+  deleteSubmissionRecord: async () => {},
 }));
 vi.mock("@/lib/mailer", async (orig) => ({
   ...(await orig<typeof import("@/lib/mailer")>()),

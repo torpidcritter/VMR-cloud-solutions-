@@ -1,0 +1,283 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { Download, Eye, Mail, Phone, UserRound } from "lucide-react";
+import { requireAdmin } from "@/lib/auth/session";
+import { can } from "@/lib/auth/permissions";
+import { getApplication, recruiterOptions } from "@/lib/data/applications";
+import { APPLICATION_SOURCE_LABELS, APPLICATION_STATUSES, APPLICATION_STATUS_LABELS, canMoveApplication } from "@/lib/data/constants";
+import { EVENT_KIND_LABELS, EventText, PriorityBadge, eventTone } from "@/components/admin/candidate-ui";
+import { ConfirmButton, SubmitButton } from "@/components/admin/forms";
+import { ApplicationStatusBadge, Badge, Notice, PageHeader, Panel, formatDate, formatDateTime } from "@/components/admin/ui";
+import { deleteApplicationAction, setApplicationStatusAction } from "../../../actions/applications";
+import { assignApplicationAction } from "../../../actions/pipeline";
+import { interviewerOptions, listInterviews } from "@/lib/data/interviews";
+import { InterviewForm } from "@/components/admin/InterviewForm";
+import { InterviewList } from "@/components/admin/interview-ui";
+import { istToday } from "@/lib/data/constants";
+import { NoteForm } from "./NoteForm";
+import { maskEmail, maskPhone } from "@/lib/mask";
+
+export const metadata: Metadata = { title: "Application" };
+
+const DETAIL_LABELS: Record<string, string> = { employmentType: "Employment type", preferredLocation: "Preferred location", consentVersion: "Consent (policy version)", consentAt: "Consent given", reference: "Upload reference", submittedName: "Name as submitted", submittedPhone: "Phone as submitted" };
+
+export default async function ApplicationPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
+  const me = await requireAdmin("applications.view");
+  const a = await getApplication((await params).id);
+  const sp = await searchParams;
+  const superAdmin = me.role === "super_admin";
+  if (!a) notFound();
+  // Viewer and Sales don't contact candidates: they see masked details (M-12).
+  const contact = can(me.role, "candidates.contact");
+  if (!contact) {
+    a.email = maskEmail(a.email);
+    a.phone = maskPhone(a.phone);
+    if (a.details?.submittedPhone) a.details = { ...a.details, submittedPhone: maskPhone(String(a.details.submittedPhone)) };
+  }
+  const showClient = can(me.role, "openings.viewClient");
+  const editable = can(me.role, "applications.update");
+  const isPdf = a.resume_path?.endsWith(".pdf");
+  const canInterview = can(me.role, "interviews.manage");
+  const [recruiters, interviews, interviewers] = await Promise.all([
+    editable ? recruiterOptions() : Promise.resolve([]),
+    listInterviews({ applicationId: a.id }, 50),
+    canInterview ? interviewerOptions() : Promise.resolve([]),
+  ]);
+
+  const facts: [string, React.ReactNode][] = [
+    ["Position", a.position],
+    ["Job opening", a.opening_id ? <Link href={`/admin/openings/${a.opening_id}`} className="text-brand-600 hover:underline">{a.opening_title}</Link> : "—"],
+    ...(a.opening_id ? ([[showClient ? "Client" : "Employer (public)", showClient ? a.client_name || "—" : a.public_client_label]] as [string, React.ReactNode][]) : []),
+    ["Source", APPLICATION_SOURCE_LABELS[a.source]],
+    ["Experience", a.experience || a.candidate_experience || "—"],
+    ["Specialisation", a.specialisation || "—"],
+    ["Location", a.location || "—"],
+    ...Object.entries(a.details ?? {})
+      .filter(([, v]) => v !== "" && v != null)
+      .map(([k, v]) => [DETAIL_LABELS[k] ?? k, k === "consentAt" ? formatDateTime(String(v)) : String(v)] as [string, React.ReactNode]),
+  ];
+
+  return (
+    <>
+      <Link href="/admin/applications" className="text-sm text-muted hover:text-brand-600">
+        ← Applications
+      </Link>
+      {sp.refused && (
+        <Notice tone="amber">
+          That stage change isn&rsquo;t allowed. An application can only be marked Hired after an interview, selection or offer, and a Hired application can only be moved back to Offer released, by a
+          super admin.
+        </Notice>
+      )}
+      {sp.nodelete && <Notice tone="amber">A Hired application can&rsquo;t be deleted, because it is part of the placement record. Move it back to Offer released first if it was a mistake.</Notice>}
+      <PageHeader
+        title={a.full_name}
+        description={
+          <span className="inline-flex flex-wrap items-center gap-2">
+            <ApplicationStatusBadge status={a.status} /> <PriorityBadge priority={a.priority} /> Application #{a.number} · received {formatDateTime(a.submitted_at)} · in this stage since{" "}
+            {formatDate(a.stage_changed_at)}
+          </span>
+        }
+        actions={
+          <>
+            <Link href={`/admin/candidates/${a.candidate_id}`} className="a-btn">
+              <UserRound aria-hidden className="size-4" /> Candidate profile
+            </Link>
+            {contact && (
+              <a href={`mailto:${a.email}`} className="a-btn">
+                <Mail aria-hidden className="size-4" /> Email
+              </a>
+            )}
+            {contact && a.phone && (
+              <a href={`tel:${a.phone.replace(/[^\d+]/g, "")}`} className="a-btn">
+                <Phone aria-hidden className="size-4" /> Call
+              </a>
+            )}
+          </>
+        }
+      />
+
+      <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+        <div className="grid content-start gap-6">
+          <Panel title="Candidate">
+            <dl className="grid gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
+              <div>
+                <dt className="text-muted">Email</dt>
+                <dd className="mt-0.5 break-all font-medium">{a.email}</dd>
+              </div>
+              <div>
+                <dt className="text-muted">Phone</dt>
+                <dd className="mt-0.5 font-medium">{a.phone || "—"}</dd>
+              </div>
+              {facts.map(([k, v]) => (
+                <div key={k}>
+                  <dt className="text-muted">{k}</dt>
+                  <dd className="mt-0.5 font-medium">{v}</dd>
+                </div>
+              ))}
+            </dl>
+            {a.message && (
+              <div className="mt-5 border-t border-line pt-4">
+                <p className="text-sm text-muted">Message</p>
+                <p className="mt-1 whitespace-pre-line text-sm leading-relaxed">{a.message}</p>
+              </div>
+            )}
+          </Panel>
+
+          <Panel title="Resume">
+            {a.resume_path ? (
+              can(me.role, "resumes.download") ? (
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="min-w-0 truncate text-sm">{a.resume_name || "Resume"}</span>
+                  {a.resume_size ? <span className="text-xs text-muted">{Math.max(1, Math.round(a.resume_size / 1024))} KB</span> : null}
+                  <span className="ml-auto flex gap-2">
+                    {isPdf && (
+                      <a href={`/admin/api/resume/${a.id}?view=1`} target="_blank" rel="noreferrer" className="a-btn">
+                        <Eye aria-hidden className="size-4" /> View
+                      </a>
+                    )}
+                    <a href={`/admin/api/resume/${a.id}`} className="a-btn a-btn-primary">
+                      <Download aria-hidden className="size-4" /> Download
+                    </a>
+                  </span>
+                </div>
+              ) : (
+                <p className="text-sm text-muted">A resume is on file. Your role can&apos;t download resumes.</p>
+              )
+            ) : (
+              <p className="text-sm text-muted">No resume stored with this application{a.source === "talent" ? ". Resumes the team uploaded are on the candidate's profile" : a.source !== "cv_upload" ? " (it was sent by email)" : ""}.</p>
+            )}
+          </Panel>
+
+          <Panel title={`Interviews${interviews.length ? ` (${interviews.length})` : ""}`} bodyClass="">
+            <InterviewList items={interviews} empty="No interviews yet." showCandidate={false} />
+            {canInterview && (
+              <details id="schedule" className="border-t border-line px-5 py-4" open={!interviews.length}>
+                <summary className="cursor-pointer text-sm font-semibold text-brand-600">Schedule an interview</summary>
+                <div className="mt-4">
+                  <InterviewForm
+                    interviewers={interviewers}
+                    values={{
+                      applicationId: a.id,
+                      round: interviews.length ? "" : "Technical round 1",
+                      date: istToday(),
+                      time: "11:00",
+                      duration: "60",
+                      mode: "video",
+                      location: "",
+                      notes: "",
+                      panel: a.assigned_to ? [a.assigned_to] : [me.id],
+                    }}
+                  />
+                </div>
+              </details>
+            )}
+          </Panel>
+
+          <Panel title="Notes and history">
+            {editable && <NoteForm id={a.id} />}
+            {a.events.length ? (
+              <ol className="mt-4 grid gap-3">
+                {a.events.map((e) => (
+                  <li key={e.id} className="rounded-lg border border-line p-3 text-sm">
+                    <p className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                      <Badge tone={eventTone(e.kind)}>{EVENT_KIND_LABELS[e.kind] ?? e.kind}</Badge>
+                      {e.user_name ?? "System"} · {formatDateTime(e.created_at)}
+                    </p>
+                    <EventText e={e} hideContact={!contact} />
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="mt-3 text-sm text-muted">No notes or status changes yet.</p>
+            )}
+          </Panel>
+        </div>
+
+        <div className="grid content-start gap-6">
+          {editable && (
+            <Panel title="Status">
+              <div className="flex flex-wrap gap-2">
+                {APPLICATION_STATUSES.map((s) =>
+                  s === a.status ? (
+                    <span key={s} aria-current="true" className="a-chip !border-btn !bg-btn !text-white">
+                      {APPLICATION_STATUS_LABELS[s]}
+                    </span>
+                  ) : canMoveApplication(a.status, s, superAdmin) ? (
+                    <form key={s} action={setApplicationStatusAction}>
+                      <input type="hidden" name="id" value={a.id} />
+                      <input type="hidden" name="status" value={s} />
+                      <SubmitButton className="a-chip" pendingLabel="…">
+                        {APPLICATION_STATUS_LABELS[s]}
+                      </SubmitButton>
+                    </form>
+                  ) : null,
+                )}
+              </div>
+              {a.status === "hired" ? (
+                <p className="mt-3 text-xs text-muted">{superAdmin ? "A Hired application can only be moved back to Offer released." : "Only a super admin can move a Hired application back."}</p>
+              ) : a.status !== "interview_completed" && a.status !== "selected" && a.status !== "offer_released" ? (
+                <p className="mt-3 text-xs text-muted">Hired becomes available after Interview completed, Selected or Offer released.</p>
+              ) : null}
+            </Panel>
+          )}
+
+          <Panel title="Recruiter">
+            {editable ? (
+              <form action={assignApplicationAction} className="flex flex-wrap items-end gap-2">
+                <input type="hidden" name="id" value={a.id} />
+                <div className="min-w-0 flex-1">
+                  <label htmlFor="assignee" className="a-label">
+                    Assigned to
+                  </label>
+                  <select id="assignee" name="assignee" defaultValue={a.assigned_to ?? ""} className="a-field">
+                    <option value="">Unassigned</option>
+                    {recruiters.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <SubmitButton className="a-btn" pendingLabel="Saving…">
+                  Save
+                </SubmitButton>
+              </form>
+            ) : (
+              <p className="text-sm">{a.assigned_name ?? <span className="text-muted">Unassigned</span>}</p>
+            )}
+          </Panel>
+
+          <Panel title={`Other applications from ${a.full_name.split(" ")[0]}`} bodyClass="">
+            {a.others.length ? (
+              <ul className="divide-y divide-line">
+                {a.others.map((o) => (
+                  <li key={o.id} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
+                    <Link href={`/admin/applications/${o.id}`} className="min-w-0 hover:text-brand-600">
+                      <span className="block truncate font-medium">{o.position}</span>
+                      <span className="text-xs text-muted">
+                        #{o.number} · {formatDateTime(o.submitted_at)}
+                      </span>
+                    </Link>
+                    <ApplicationStatusBadge status={o.status} />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="px-5 py-4 text-sm text-muted">This is their only application.</p>
+            )}
+          </Panel>
+
+          {can(me.role, "applications.delete") && a.status !== "hired" && (
+            <Panel title="Delete">
+              <p className="mb-3 text-sm text-muted">Removes this application, its notes and its stored resume. Use this for data-deletion requests.</p>
+              <ConfirmButton action={deleteApplicationAction} hidden={{ id: a.id }} confirm={`Delete application #${a.number} from ${a.full_name}? This can't be undone.`}>
+                Delete application
+              </ConfirmButton>
+            </Panel>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}

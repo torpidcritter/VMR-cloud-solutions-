@@ -1,10 +1,16 @@
 import { NextResponse } from "next/server";
 import { CONSENT_VERSION, CV_MAX_BYTES, CV_MIME, fileExtension, validateCv } from "@/lib/cv";
-import { isStorageConfigured, storeCv } from "@/lib/cv-storage";
+import { deleteStoredFile, deleteSubmissionRecord, isStorageConfigured, storeCv } from "@/lib/cv-storage";
 import { inspectCvFile } from "@/lib/file-check";
 import { clientIp, looksLikeBot, rateLimited, sameOrigin } from "@/lib/guard";
 import { isMailConfigured, sendMail, tableHtml } from "@/lib/mailer";
-import { site } from "@/content/site";
+import { isDbConfigured } from "@/lib/db/client";
+import { recordApplication } from "@/lib/data/applications";
+import { getSettings } from "@/lib/data/settings";
+import { saveSubmission } from "@/lib/submissions";
+import { extractResumeText } from "@/lib/resume-text";
+import { queueMail } from "@/lib/data/outbox";
+import { errorMessage, log } from "@/lib/log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,8 +29,10 @@ export async function POST(req: Request) {
     return json({ ok: false, errors: { cv: "Your CV must be 4 MB or smaller." } }, 413);
   }
 
-  if (!isStorageConfigured() || !isMailConfigured()) {
-    console.error("[cv] upload unavailable: storage or email is not configured");
+  // The CV must be stored, and someone must find out about it: by email,
+  // or in the admin panel when the database is connected.
+  if (!isStorageConfigured() || (!isMailConfigured() && !isDbConfigured())) {
+    log("error", "cv.unavailable", { reason: "storage or email is not configured" });
     return json({ ok: false, error: UNAVAILABLE }, 503);
   }
 
@@ -38,7 +46,7 @@ export async function POST(req: Request) {
 
   // Bots get a quiet "success" so they don't retry; nothing is stored.
   if (looksLikeBot(fields.website, fields.startedAt)) return json({ ok: true });
-  if (rateLimited(clientIp(req.headers))) {
+  if (await rateLimited(clientIp(req.headers))) {
     return json({ ok: false, error: "Too many submissions. Please try again in a few minutes." }, 429);
   }
 
@@ -76,8 +84,44 @@ export async function POST(req: Request) {
       },
     });
   } catch (err) {
-    console.error("[cv] storage failed", err instanceof Error ? err.message : err);
+    log("error", "cv.storage_failed", { error: errorMessage(err) });
     return json({ ok: false, error: "We couldn't save your CV just now." }, 503);
+  }
+
+  const saved = await saveSubmission("cv", () =>
+    recordApplication({
+      candidate: {
+        email: data.email,
+        fullName: data.fullName,
+        phone: data.phone,
+        location: data.location,
+        preferredLocation: data.preferredLocation,
+        specialisation: data.specialisation,
+        experience: data.experience,
+        employmentType: data.employmentType,
+      },
+      source: "cv_upload",
+      position: data.specialisation,
+      experience: data.experience,
+      details: { employmentType: data.employmentType, preferredLocation: data.preferredLocation, consentVersion: CONSENT_VERSION, consentAt: submittedAt, reference: stored.id },
+      resume: { path: stored.cvPath, name: file!.name.slice(0, 180), size: buffer.length, type: CV_MIME[ext] },
+      resumeText: extractResumeText(buffer, ext),
+      submissionKey: typeof fields.submissionId === "string" ? fields.submissionId : null,
+    }),
+  );
+  // The same submission arrived twice (a retry or double click). The first one
+  // is saved and was already emailed, so drop this copy and answer with the
+  // first reference.
+  if (saved?.duplicate) {
+    await deleteStoredFile(stored.cvPath).catch(() => undefined);
+    await deleteSubmissionRecord(stored.cvPath).catch(() => undefined);
+    const first = saved.reference && /^[0-9a-f-]{36}$/i.test(saved.reference) ? saved.reference : stored.id;
+    return json({ ok: true, reference: first.slice(0, 8).toUpperCase() });
+  }
+  const settings = await getSettings();
+  if (!isMailConfigured() || !settings.notifyApplications) {
+    if (!saved) log("error", "cv.not_recorded", { reference: stored.id });
+    return json({ ok: true, reference: stored.id.slice(0, 8).toUpperCase() });
   }
 
   // The CV is safely stored; the email tells the recruitment team about it.
@@ -94,19 +138,22 @@ export async function POST(req: Request) {
     ["Reference", stored.id],
     ["Stored at", `${stored.driver === "vercel-blob" ? "Vercel Blob (private)" : "Server storage"}: ${stored.cvPath}`],
   ];
+  if (saved) rows.push(["Admin reference", `#${saved.number}${saved.repeat ? " (has applied before)" : ""}`]);
   const safeName = `${data.fullName.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "") || "candidate"}-CV.${ext}`;
+  const mail = {
+    to: settings.applicationsEmail,
+    replyTo: data.email,
+    subject: `New SAP CV: ${data.specialisation} (${data.employmentType}) – ${data.fullName}`,
+    text: rows.map(([k, v]) => `${k}: ${v}`).join("\n"),
+    html: tableHtml("New CV submitted on the website", rows),
+  };
   try {
-    await sendMail({
-      to: process.env.CV_TO || process.env.CAREERS_TO || site.email.hr,
-      replyTo: data.email,
-      subject: `New SAP CV: ${data.specialisation} (${data.employmentType}) – ${data.fullName}`,
-      text: rows.map(([k, v]) => `${k}: ${v}`).join("\n"),
-      html: tableHtml("New CV submitted on the website", rows),
-      attachments: [{ filename: safeName, content: buffer, contentType: CV_MIME[ext] }],
-    });
+    await sendMail({ ...mail, attachments: [{ filename: safeName, content: buffer, contentType: CV_MIME[ext] }] });
   } catch (err) {
-    // Not fatal: the submission is stored and can be found by its reference.
-    console.error(`[cv] stored ${stored.id} but notification email failed`, err instanceof Error ? err.message : err);
+    // Not fatal: the submission is stored and can be found by its reference. With the
+    // database connected, the email is queued and retried by the daily job.
+    log("error", "cv.notify_failed", { reference: stored.id, error: errorMessage(err) });
+    if (saved) await queueMail({ kind: "cv", ref: stored.id, mail, attachment: { path: stored.cvPath, name: safeName, type: CV_MIME[ext] }, error: errorMessage(err) });
   }
 
   return json({ ok: true, reference: stored.id.slice(0, 8).toUpperCase() });
