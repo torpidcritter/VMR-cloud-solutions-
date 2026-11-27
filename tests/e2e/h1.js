@@ -28,7 +28,9 @@ const DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.doc
 (async () => {
   const b = await chromium.launch();
   const errs = [];
-  const watch = (p) => { p.on('pageerror', (e) => errs.push(e.message)); p.on('console', (m) => m.type() === 'error' && errs.push(`${p.url()}: ${m.text()}`)); };
+  // Errors logged inside third-party frames (the Google map on /contact) are not the site's own.
+  const ours = (m) => { const u = m.location()?.url || ''; return !u || u.startsWith(B); };
+  const watch = (p) => { p.on('pageerror', (e) => errs.push(e.message)); p.on('console', (m) => m.type() === 'error' && ours(m) && errs.push(`${p.url()}: ${m.text()}`)); };
 
   // ---- Public careers form: macro file refused, then a submission the network sends twice
   const run = Math.floor(Math.random() * 200) + 20;
